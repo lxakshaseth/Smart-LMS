@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Card } from "../ui/Card";
+import { Card } from "../ui/card";
 import { Button } from "../ui/Button";
 import { Plus, CheckCircle, Circle, Sparkles, Send, Loader2 } from "lucide-react";
 import AddTaskPage, { type NewTask } from "./AddTaskPage";
