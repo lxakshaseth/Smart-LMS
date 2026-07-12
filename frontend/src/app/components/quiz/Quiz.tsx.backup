@@ -1,0 +1,309 @@
+import { useState } from "react";
+import { Card } from "../ui/Card";
+import { Button } from "../ui/Button";
+import { CheckCircle, XCircle, Trophy, Zap, GraduationCap, Rocket } from "lucide-react";
+
+interface Question {
+  id: number;
+  question: string;
+  options: string[];
+  correctAnswer: number;
+}
+
+type QuizMode = "jee-neet" | "engineering";
+
+const jeeNeetQuestions: Question[] = [
+  {
+    id: 1,
+    question: "What is the first law of thermodynamics?",
+    options: [
+      "Energy cannot be created or destroyed",
+      "Entropy always increases",
+      "Heat flows from cold to hot",
+      "Work equals force times distance",
+    ],
+    correctAnswer: 0,
+  },
+  {
+    id: 2,
+    question: "What is the SI unit of force?",
+    options: ["Joule", "Newton", "Watt", "Pascal"],
+    correctAnswer: 1,
+  },
+  {
+    id: 3,
+    question: "Which element has the atomic number 6?",
+    options: ["Oxygen", "Nitrogen", "Carbon", "Hydrogen"],
+    correctAnswer: 2,
+  },
+];
+
+const engineeringQuestions: Question[] = [
+  {
+    id: 1,
+    question: "What is the time complexity of Binary Search?",
+    options: ["O(n)", "O(log n)", "O(n²)", "O(1)"],
+    correctAnswer: 1,
+  },
+  {
+    id: 2,
+    question: "In a 4-bit binary number, what is the maximum decimal value?",
+    options: ["15", "16", "31", "32"],
+    correctAnswer: 0,
+  },
+  {
+    id: 3,
+    question: "What does DBMS stand for?",
+    options: [
+      "Database Management System",
+      "Digital Binary Management System",
+      "Data Block Memory System",
+      "Database Memory System",
+    ],
+    correctAnswer: 0,
+  },
+];
+
+export default function Quiz() {
+  const [quizMode, setQuizMode] = useState<QuizMode | null>(null);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+  const [showResult, setShowResult] = useState(false);
+  const [score, setScore] = useState(0);
+  const [answers, setAnswers] = useState<number[]>([]);
+
+  const sampleQuestions = quizMode === "engineering" ? engineeringQuestions : jeeNeetQuestions;
+  const question = sampleQuestions[currentQuestion];
+
+  const handleAnswer = (index: number) => {
+    setSelectedAnswer(index);
+  };
+
+  const handleNext = () => {
+    const newAnswers = [...answers, selectedAnswer!];
+    setAnswers(newAnswers);
+
+    if (selectedAnswer === question.correctAnswer) {
+      setScore(score + 1);
+    }
+
+    if (currentQuestion + 1 < sampleQuestions.length) {
+      setCurrentQuestion(currentQuestion + 1);
+      setSelectedAnswer(null);
+    } else {
+      setShowResult(true);
+    }
+  };
+
+  const handleRestart = () => {
+    setCurrentQuestion(0);
+    setSelectedAnswer(null);
+    setShowResult(false);
+    setScore(0);
+    setAnswers([]);
+  };
+
+  const handleModeSelect = (mode: QuizMode) => {
+    setQuizMode(mode);
+    setCurrentQuestion(0);
+    setSelectedAnswer(null);
+    setShowResult(false);
+    setScore(0);
+    setAnswers([]);
+  };
+
+  if (!quizMode) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">Practice Quiz</h1>
+          <p className="text-muted-foreground mt-1">Choose your quiz mode to get started</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card
+            onClick={() => handleModeSelect("jee-neet")}
+            className="p-8 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-200 bg-gradient-to-br from-primary/5 to-secondary/5 border-2 border-transparent hover:border-primary"
+          >
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                <GraduationCap className="text-white" size={40} />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold mb-2">JEE / NEET Mode</h2>
+                <p className="text-muted-foreground">
+                  Physics, Chemistry, Mathematics, and Biology questions for JEE and NEET preparation
+                </p>
+              </div>
+              <div className="flex gap-2 flex-wrap justify-center">
+                <span className="px-3 py-1 rounded-lg bg-primary/10 text-primary text-xs">Physics</span>
+                <span className="px-3 py-1 rounded-lg bg-secondary/10 text-secondary text-xs">Chemistry</span>
+                <span className="px-3 py-1 rounded-lg bg-accent/10 text-accent text-xs">Maths</span>
+                <span className="px-3 py-1 rounded-lg bg-purple-500/10 text-purple-500 text-xs">Biology</span>
+              </div>
+            </div>
+          </Card>
+
+          <Card
+            onClick={() => handleModeSelect("engineering")}
+            className="p-8 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-200 bg-gradient-to-br from-accent/5 to-purple-500/5 border-2 border-transparent hover:border-accent"
+          >
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-accent to-purple-500 flex items-center justify-center">
+                <Rocket className="text-white" size={40} />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Engineering Mode</h2>
+                <p className="text-muted-foreground">
+                  Computer Science, Data Structures, DBMS, and Core Engineering concepts
+                </p>
+              </div>
+              <div className="flex gap-2 flex-wrap justify-center">
+                <span className="px-3 py-1 rounded-lg bg-accent/10 text-accent text-xs">DSA</span>
+                <span className="px-3 py-1 rounded-lg bg-purple-500/10 text-purple-500 text-xs">DBMS</span>
+                <span className="px-3 py-1 rounded-lg bg-primary/10 text-primary text-xs">CS</span>
+                <span className="px-3 py-1 rounded-lg bg-secondary/10 text-secondary text-xs">Coding</span>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (showResult) {
+    const percentage = Math.round((score / sampleQuestions.length) * 100);
+    const xpEarned = score * 50;
+
+    return (
+      <div className="p-6 max-w-4xl mx-auto">
+        <Card className="text-center p-8 bg-gradient-to-br from-primary/5 to-secondary/5">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center mx-auto mb-6">
+            <Trophy className="text-white" size={40} />
+          </div>
+          <h1 className="text-3xl font-bold mb-2">Quiz Completed!</h1>
+          <p className="text-muted-foreground mb-8">Great job on completing the quiz</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <Card className="bg-card">
+              <p className="text-sm text-muted-foreground">Score</p>
+              <p className="text-3xl font-bold text-primary">
+                {score}/{sampleQuestions.length}
+              </p>
+            </Card>
+            <Card className="bg-card">
+              <p className="text-sm text-muted-foreground">Percentage</p>
+              <p className="text-3xl font-bold text-secondary">{percentage}%</p>
+            </Card>
+            <Card className="bg-card">
+              <p className="text-sm text-muted-foreground">XP Earned</p>
+              <p className="text-3xl font-bold text-accent flex items-center justify-center gap-2">
+                <Zap size={28} /> {xpEarned}
+              </p>
+            </Card>
+          </div>
+
+          <div className="space-y-3 mb-8 text-left">
+            <h3 className="font-bold text-lg">Review Answers:</h3>
+            {sampleQuestions.map((q, idx) => (
+              <Card key={q.id} className="bg-card">
+                <div className="flex items-start gap-3">
+                  {answers[idx] === q.correctAnswer ? (
+                    <CheckCircle className="text-secondary flex-shrink-0 mt-1" size={20} />
+                  ) : (
+                    <XCircle className="text-destructive flex-shrink-0 mt-1" size={20} />
+                  )}
+                  <div className="flex-1">
+                    <p className="font-medium mb-2">{q.question}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Your answer: {q.options[answers[idx]]}
+                    </p>
+                    {answers[idx] !== q.correctAnswer && (
+                      <p className="text-sm text-secondary">
+                        Correct answer: {q.options[q.correctAnswer]}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          <div className="flex gap-4 justify-center">
+            <Button onClick={handleRestart}>Try Again</Button>
+            <Button variant="secondary" onClick={() => setQuizMode(null)}>
+              Change Mode
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">
+            {quizMode === "engineering" ? "Engineering Quiz" : "JEE/NEET Quiz"}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {quizMode === "engineering"
+              ? "Test your engineering knowledge"
+              : "Test your JEE/NEET preparation"}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-sm text-muted-foreground">Question</p>
+          <p className="text-2xl font-bold">
+            {currentQuestion + 1}/{sampleQuestions.length}
+          </p>
+        </div>
+      </div>
+
+      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+        <div
+          className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-300"
+          style={{ width: `${((currentQuestion + 1) / sampleQuestions.length) * 100}%` }}
+        />
+      </div>
+
+      <Card className="p-8">
+        <h2 className="text-xl font-bold mb-6">{question.question}</h2>
+
+        <div className="space-y-3">
+          {question.options.map((option, index) => (
+            <button
+              key={index}
+              onClick={() => handleAnswer(index)}
+              className={`w-full p-4 rounded-xl border-2 text-left transition-all duration-200 ${
+                selectedAnswer === index
+                  ? "border-primary bg-primary/10"
+                  : "border-border hover:border-primary/50 hover:bg-muted"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                    selectedAnswer === index
+                      ? "border-primary bg-primary"
+                      : "border-border"
+                  }`}
+                >
+                  {selectedAnswer === index && <div className="w-2 h-2 bg-white rounded-full" />}
+                </div>
+                <span>{option}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-8 flex justify-end">
+          <Button onClick={handleNext} disabled={selectedAnswer === null}>
+            {currentQuestion + 1 === sampleQuestions.length ? "Finish Quiz" : "Next Question"}
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}

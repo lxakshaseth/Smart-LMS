@@ -1,0 +1,243 @@
+const express = require("express");
+const router = express.Router();
+const bcrypt = require("bcryptjs");
+
+const { protect } = require("../middleware/auth.middleware");
+const User = require("../models/user.model");
+
+/*
+========================================================
+GET PROFILE DATA
+========================================================
+*/
+router.get("/", protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .select("-password")
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    const xp = user.xp ?? 0;
+    const level = Math.floor(xp / 100) + 1;
+    const levelProgress = xp % 100;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        name: user.username || "User",
+        email: user.email || "",
+        xp,
+        level,
+        levelProgress,
+        accuracy: user.accuracy ?? 0,
+        streak: user.streak ?? 0,
+        risk: user.risk || "Low",
+        readiness: user.readiness ?? 0,
+        weakSubject: user.weakSubject || "Not Available",
+        strongSubject: user.strongSubject || "Not Available",
+        trend: user.trend || "Stable",
+        darkMode: user.darkMode ?? false,
+        weeklyXP: user.weeklyXP || [40, 80, 20, 120, 90, 150, 110]
+      }
+    });
+
+  } catch (error) {
+    console.error("PROFILE ERROR:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+});
+
+/*
+========================================================
+UPDATE PROFILE
+========================================================
+*/
+router.put("/update", protect, async (req, res) => {
+  try {
+    const { username, name } = req.body;
+
+    const displayVal = (name || username || "").trim();
+    if (!displayVal || displayVal.length < 3) {
+      return res.status(400).json({
+        success: false,
+        message: "Name/Username must be at least 3 characters"
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    if (username) {
+      user.username = username.trim();
+    }
+    user.name = displayVal;
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: "Profile updated successfully",
+      data: {
+        username: user.username,
+        name: user.name
+      }
+    });
+
+  } catch (error) {
+    console.error("UPDATE PROFILE ERROR:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+});
+
+/*
+========================================================
+UPDATE SETTINGS
+========================================================
+*/
+router.put("/settings", protect, async (req, res) => {
+  try {
+    const { darkMode } = req.body;
+
+    if (typeof darkMode !== "boolean") {
+      return res.status(400).json({
+        success: false,
+        message: "darkMode must be true or false"
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    user.darkMode = darkMode;
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: "Settings updated successfully",
+      data: {
+        darkMode: user.darkMode
+      }
+    });
+
+  } catch (error) {
+    console.error("SETTINGS UPDATE ERROR:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+});
+
+/*
+========================================================
+CHANGE PASSWORD
+========================================================
+*/
+router.put("/change-password", protect, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required"
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "New password must be at least 6 characters"
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password incorrect"
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: "Password updated successfully"
+    });
+
+  } catch (error) {
+    console.error("CHANGE PASSWORD ERROR:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+});
+
+/*
+========================================================
+DELETE ACCOUNT
+========================================================
+*/
+router.delete("/delete-account", protect, async (req, res) => {
+  try {
+    const deletedUser = await User.findByIdAndDelete(req.user._id);
+
+    if (!deletedUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Account deleted successfully"
+    });
+
+  } catch (error) {
+    console.error("DELETE ACCOUNT ERROR:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+});
+
+module.exports = router;
