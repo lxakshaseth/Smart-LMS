@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { Card } from "../ui/Card";
-import { Button } from "../ui/Button";
+import { Card } from "../ui/card";
+import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";

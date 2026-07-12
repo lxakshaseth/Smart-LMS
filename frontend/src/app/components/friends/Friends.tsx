@@ -8,8 +8,8 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { apiRequest } from "../../lib/api";
 import { io, Socket } from "socket.io-client";
-import { Card } from "../ui/Card";
-import { Button } from "../ui/Button";
+import { Card } from "../ui/card";
+import { Button } from "../ui/button";
 
 // Audio Ringtone Helper
 class RingtoneGenerator {
