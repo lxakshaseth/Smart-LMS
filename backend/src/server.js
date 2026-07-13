@@ -29,14 +29,66 @@ const friendsRoutes = require("./routes/friends.routes");
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
 
-// Serve static uploads folder
+// 1. Set up CORS allowed origins
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:3000",
+  "https://smart-lms-pj6i-lake.vercel.app"
+];
+
+// Parse extra origins from environment variable if present
+if (process.env.CLIENT_URL) {
+  process.env.CLIENT_URL.split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+    .forEach((origin) => {
+      if (!allowedOrigins.includes(origin)) {
+        allowedOrigins.push(origin);
+      }
+    });
+}
+
+const clientOrigins = allowedOrigins;
+
+// 2. Apply Helmet and CORS before any routes (including static / uploads)
+app.use(
+  helmet({
+    contentSecurityPolicy: false
+  })
+);
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like Postman, mobile apps, curl)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    callback(null, false);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+
+// Ensure preflight OPTIONS requests are handled globally
+app.options("*", cors(corsOptions));
+
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
+
+// 3. Multer / Static Uploads setup after CORS
 const multer = require("multer");
 const uploadsDir = path.join(__dirname, "../uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Multer storage config
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadsDir);
@@ -49,10 +101,8 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Serve static uploads
 app.use("/uploads", express.static(uploadsDir));
 
-// Dedicated HTTP file upload route
 app.post("/api/upload", upload.single("file"), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ success: false, message: "No file uploaded" });
@@ -66,25 +116,6 @@ app.post("/api/upload", upload.single("file"), (req, res) => {
     fileSize: req.file.size
   });
 });
-const clientOrigins = (process.env.CLIENT_URL || "http://localhost:5173,http://127.0.0.1:5173")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-
-app.use(
-  helmet({
-    contentSecurityPolicy: false
-  })
-);
-app.use(
-  cors({
-    origin: clientOrigins,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"]
-  })
-);
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", apiLimiter);
 
