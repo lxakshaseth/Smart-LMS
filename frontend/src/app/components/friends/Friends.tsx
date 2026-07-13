@@ -1632,7 +1632,7 @@ export default function Friends() {
       />
       
       {/* ── LEFT SIDEBAR: Chats vs Calls history ── */}
-      <div className="w-full lg:w-[410px] bg-white dark:bg-slate-900 border-r border-[#e9edef] dark:border-slate-800 flex flex-col flex-shrink-0">
+      <div className={`w-full lg:w-[410px] bg-white dark:bg-slate-900 border-r border-[#e9edef] dark:border-slate-800 flex flex-col flex-shrink-0 ${selectedFriend ? "hidden lg:flex" : "flex"}`}>
         
         {/* WhatsApp user header card */}
         <div className="bg-[#f0f2f5] dark:bg-slate-850 px-4 py-3 flex items-center justify-between relative">
@@ -1871,7 +1871,7 @@ export default function Friends() {
       </div>
 
       {/* ── RIGHT PANEL: Active chat screen or idle landing ── */}
-      <div className="flex-1 flex flex-col h-full bg-[#efeae2] dark:bg-slate-950 relative">
+      <div className={`flex-1 flex flex-col h-full bg-[#efeae2] dark:bg-slate-950 relative ${selectedFriend ? "flex" : "hidden lg:flex"}`}>
         
         {selectedFriend && activeTab === "chats" ? (
           <div className="flex-1 flex flex-col h-full justify-between relative">
@@ -1879,6 +1879,12 @@ export default function Friends() {
             {/* Chat header with call buttons (now always enabled with offline simulation fallback) */}
             <div className="bg-[#f0f2f5] dark:bg-slate-900 border-b border-[#e9edef] dark:border-slate-800 px-4 py-2.5 flex items-center justify-between z-10">
               <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setSelectedFriend(null)}
+                  className="lg:hidden p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-muted-foreground mr-1"
+                >
+                  <ChevronLeft size={20} />
+                </button>
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-sm bg-gradient-to-br
                   ${selectedFriend.isMock ? "from-indigo-500 to-purple-600" : "from-emerald-400 to-teal-500"}
                 `}>

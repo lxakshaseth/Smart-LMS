@@ -33,7 +33,7 @@ export function Navbar() {
   const doLogout = () => { logout(); navigate("/login"); };
 
   return (
-    <nav className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border px-6 py-4 flex items-center justify-between gap-4">
+    <nav className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border pl-16 pr-6 py-4 flex items-center justify-between gap-4 lg:px-6">
       {/* search */}
       <div className="flex-1 max-w-xl">
         <div className="relative">

@@ -517,6 +517,17 @@ export default function AITutor() {
   const [typing, setTyping]       = useState(false);
   const [sidebarW, setSidebarW]   = useState(DEF_W);
   const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    const checkSidebarCollapse = () => {
+      if (window.innerWidth < 768) {
+        setCollapsed(true);
+      }
+    };
+    checkSidebarCollapse();
+    window.addEventListener("resize", checkSidebarCollapse);
+    return () => window.removeEventListener("resize", checkSidebarCollapse);
+  }, []);
   const [search, setSearch]       = useState("");
   const [showLangMenu, setShowLangMenu] = useState(false);
   const endRef                    = useRef<HTMLDivElement>(null);
@@ -720,14 +731,26 @@ export default function AITutor() {
   const recent = filtered.filter(c => !c.pinned);
 
   return (
-    <div className="flex h-[calc(100vh-65px)] overflow-hidden bg-background">
+    <div className="flex h-[calc(100vh-65px)] overflow-hidden bg-background relative">
+
+      {/* ── mobile backdrop overlay for chat sidebar ── */}
+      <AnimatePresence>
+        {!collapsed && (
+          <div
+            onClick={() => setCollapsed(true)}
+            className="md:hidden absolute inset-0 z-10 bg-black/45 backdrop-blur-xs"
+          />
+        )}
+      </AnimatePresence>
 
       {/* ── sidebar ── */}
       <AnimatePresence initial={false}>
         {!collapsed && (
           <motion.aside initial={{ width: 0, opacity: 0 }} animate={{ width: sidebarW, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }} transition={{ duration: 0.2 }}
-            style={{ width: sidebarW }} className="flex-shrink-0 border-r border-border flex flex-col bg-card overflow-hidden">
+            style={{ width: sidebarW }}
+            className="absolute md:relative inset-y-0 left-0 z-20 flex-shrink-0 border-r border-border flex flex-col bg-card overflow-hidden"
+          >
 
             <div className="flex items-center gap-2 px-3 pt-4 pb-3">
               <button onClick={newChat}
@@ -795,7 +818,7 @@ export default function AITutor() {
       {/* grip */}
       {!collapsed && (
         <div onMouseDown={onGripDown}
-          className="w-1 flex-shrink-0 cursor-col-resize hover:bg-primary/40 transition-colors flex items-center justify-center group">
+          className="hidden md:flex w-1 flex-shrink-0 cursor-col-resize hover:bg-primary/40 transition-colors items-center justify-center group">
           <GripVertical size={12} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
       )}
@@ -828,7 +851,14 @@ export default function AITutor() {
                 onClick={() => setShowLangMenu(!showLangMenu)}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-border text-xs font-medium hover:bg-muted transition-all select-none"
               >
-                <span>{LANGUAGES.find(l => l.code === (active?.language || "Auto-Detect"))?.label || "Auto-Detect"}</span>
+                <span>
+                  <span className="sm:hidden">
+                    {LANGUAGES.find(l => l.code === (active?.language || "Auto-Detect"))?.label.split(" ")[0]}
+                  </span>
+                  <span className="hidden sm:inline">
+                    {LANGUAGES.find(l => l.code === (active?.language || "Auto-Detect"))?.label || "Auto-Detect"}
+                  </span>
+                </span>
                 <ChevronDown size={12} className={`text-muted-foreground transition-transform duration-200 ${showLangMenu ? "rotate-180" : ""}`} />
               </button>
               
@@ -868,8 +898,10 @@ export default function AITutor() {
               <Pin size={16} />
             </button>
             <button onClick={newChat}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-all">
-              <Plus size={13} /> New Chat
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-all"
+              title="New Chat">
+              <Plus size={13} />
+              <span className="hidden sm:inline">New Chat</span>
             </button>
           </div>
         </div>
@@ -888,7 +920,7 @@ export default function AITutor() {
                 <h2 className="text-xl font-bold">How can I help you today?</h2>
                 <p className="text-sm text-muted-foreground mt-1">Ask me anything — explanations, practice problems, summaries, or study plans.</p>
               </div>
-              <div className="grid grid-cols-2 gap-2.5 mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-4">
                 {quickPrompts.map(q => (
                   <button key={q.text} onClick={() => { setInput(q.text); textareaRef.current?.focus(); }}
                     className="flex items-center gap-2.5 px-4 py-3 rounded-2xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 text-left text-xs font-medium transition-all group">

@@ -264,7 +264,7 @@ function OutputCard({
       className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden"
     >
       {/* card header */}
-      <div className={`flex items-center justify-between px-6 py-4 border-b border-border bg-gradient-to-r ${accentClass}`}>
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 border-b border-border bg-gradient-to-r ${accentClass}`}>
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center">
             {icon}
@@ -441,7 +441,7 @@ function TopicInput({ topic, setTopic, onGenerate, loading }: {
       <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wide block">
         Enter Topic or Subject
       </label>
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <GraduationCap size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"/>
           <input
