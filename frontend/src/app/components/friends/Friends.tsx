@@ -3,7 +3,8 @@ import {
   MessageSquare, Phone, Video, Search, Send, Paperclip, Smile,
   CheckCheck, ArrowUpRight, ArrowDownLeft, PhoneOff, Mic, MicOff, 
   VideoOff, Users, Volume2, Shield, Clock, Award, Sparkles,
-  MoreVertical, FileText, Image, User, Headphones, Trash2, Check, X, Download, Heart, UserCheck
+  MoreVertical, FileText, Image, User, Headphones, Trash2, Check, X, Download, Heart, UserCheck,
+  ChevronLeft
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { apiRequest } from "../../lib/api";
