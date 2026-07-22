@@ -7,6 +7,8 @@ services:
     buildCommand: npm install
     startCommand: npm start
     envVars:
+      - key: NODE_ENV
+        value: production
       - key: MONGO_URI
         sync: false
       - key: JWT_SECRET
@@ -14,4 +16,8 @@ services:
       - key: GROQ_API_KEY
         sync: false
       - key: GEMINI_API_KEY
+        sync: false
+      # Set this to your Vercel frontend URL (comma-separated for multiple)
+      # e.g. https://smart-lms-git-main-akshats-projects-eb688e4b.vercel.app
+      - key: CLIENT_URL
         sync: false

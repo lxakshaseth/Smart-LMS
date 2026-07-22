@@ -1,5 +1,16 @@
 const TOKEN_KEY = "lms_auth_token";
-const API_BASE_URL = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
+
+// VITE_API_URL must be the full base including /api, e.g.:
+//   Production : https://smart-lms-cfxz.onrender.com/api
+//   Development: /api  (Vite proxy handles the rest)
+//
+// ⚠️ Common mistake: setting VITE_API_URL=https://your-render-app.onrender.com
+//    (without /api) causes requests to hit /auth/login instead of /api/auth/login
+//    and results in a CORS error because Express never reaches CORS middleware.
+const _rawApiUrl = import.meta.env.VITE_API_URL || "/api";
+// Strip trailing slash, then ensure it ends with /api for full URLs
+const API_BASE_URL = _rawApiUrl.replace(/\/$/, "");
+
 
 export class ApiError extends Error {
   status: number;
