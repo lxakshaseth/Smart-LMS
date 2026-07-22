@@ -36,15 +36,22 @@ const frontendIndex = path.join(frontendDist, "index.html");
 const hasReactBuild = fs.existsSync(frontendIndex);
 
 // 1. Set up CORS allowed origins
+// ⚠️  Add every Vercel/Netlify/custom domain here OR set CLIENT_URL env var.
 const allowedOrigins = [
+  // Local development
   "http://localhost:5173",
   "http://localhost:3000",
+  "http://localhost:5500",
   "http://127.0.0.1:5173",
   "http://127.0.0.1:3000",
-  "https://smart-lms-pj6i-lake.vercel.app"
+  // Production Vercel deployments (add ALL preview + production URLs)
+  "https://smart-lms-pj6i-lake.vercel.app",
+  "https://smart-lms-git-main-akshats-projects-eb688e4b.vercel.app",
 ];
 
 // Parse extra origins from environment variable if present
+// On Render: set CLIENT_URL=https://your-vercel-app.vercel.app
+// Multiple origins: CLIENT_URL=https://app1.vercel.app,https://app2.vercel.app
 if (process.env.CLIENT_URL) {
   process.env.CLIENT_URL.split(",")
     .map((origin) => origin.trim())
@@ -148,6 +155,11 @@ app.get("/api/health", (req, res) => {
     message: "Smart AI LMS API is running",
     time: new Date().toISOString()
   });
+});
+
+// Alias: GET /health (without /api prefix) for Render health-check probes
+app.get("/health", (req, res) => {
+  res.json({ status: "running", server: "Smart AI LMS", time: new Date().toISOString() });
 });
 
 app.use("/api/auth", authRoutes);
@@ -347,9 +359,23 @@ process.on("unhandledRejection", (reason) => {
 
 // ── Boot sequence ─────────────────────────────────────────────────────────────
 if (require.main === module) {
+  console.log("[BOOT] ============================================");
+  console.log("[BOOT] Smart AI LMS Backend Starting...");
   console.log("[BOOT] NODE_ENV  :", process.env.NODE_ENV || "development");
   console.log("[BOOT] PORT      :", PORT);
-  console.log("[BOOT] Mongo URI :", process.env.MONGODB_URI || process.env.MONGO_URI ? "<set>" : "*** MISSING ***");
+  console.log("[BOOT] Mongo URI :", (process.env.MONGODB_URI || process.env.MONGO_URI) ? "<set>" : "*** MISSING — set MONGO_URI on Render ***");
+  console.log("[BOOT] JWT_SECRET:", process.env.JWT_SECRET ? "<set>" : "*** MISSING — set JWT_SECRET on Render ***");
+  console.log("[BOOT] CORS origins:");
+  allowedOrigins.forEach((o) => console.log("[BOOT]   allowed:", o));
+  console.log("[BOOT] Registered routes:");
+  console.log("[BOOT]   GET  /");
+  console.log("[BOOT]   GET  /health");
+  console.log("[BOOT]   GET  /api/health");
+  console.log("[BOOT]   POST /api/auth/login");
+  console.log("[BOOT]   POST /api/auth/register");
+  console.log("[BOOT]   GET  /api/auth/me");
+  console.log("[BOOT]   ...and all other /api/* routes");
+  console.log("[BOOT] ============================================");
   console.log("[BOOT] Connecting to MongoDB...");
 
   connectDB()
@@ -357,12 +383,13 @@ if (require.main === module) {
       console.log("[BOOT] MongoDB   : Connected ✅");
       server.listen(PORT, () => {
         console.log(`[BOOT] Server    : Listening on port ${PORT} ✅`);
-        console.log(`[BOOT] Frontend  : ${hasReactBuild ? `Serving React build from /` : `API-only mode — frontend at ${clientOrigins.find(o => !o.includes("localhost")) || clientOrigins[0]}`}`);
-        console.log("[BOOT] Smart AI LMS is ready to serve requests.");
+        console.log(`[BOOT] Frontend  : ${hasReactBuild ? "Serving React build from /" : `API-only mode — allowed origins: ${allowedOrigins.filter(o => !o.includes("localhost")).join(", ") || "(none set — add CLIENT_URL env var)"}`}`);
+        console.log("[BOOT] Smart AI LMS is ready to serve requests. ✅");
       });
     })
     .catch((err) => {
       console.error("[FATAL] Failed to connect to MongoDB:", err.message);
+      console.error("[FATAL] Ensure MONGO_URI or MONGODB_URI is set correctly in Render environment variables.");
       process.exit(1);
     });
 }
