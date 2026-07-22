@@ -4,13 +4,10 @@ import {
   ChevronLeft, Plus, Search, MoreHorizontal,
   X, Check, GripVertical, Sparkles, BookOpen, Lightbulb,
   Clock, MessageSquare, Copy, ThumbsUp, ThumbsDown,
-  RotateCcw, ChevronDown, AlertCircle, Target,
+  RotateCcw, ChevronDown, AlertCircle, Code, Terminal, FileText, Cpu, HelpCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { apiRequest } from "../../lib/api";
-import { getGreeting } from "../../lib/greeting";
-import { useAuth } from "../../context/AuthContext";
-import { getCurrentTargetExam, setCurrentTargetExam, EXAM_OPTIONS } from "../../lib/targetExam";
 import { renderMarkdown } from "../../lib/renderMarkdown";
 
 /* ═══════════════════════════════════════
@@ -80,27 +77,25 @@ const LANGUAGES = [
   { code: "Telugu", label: "🇮🇳 Telugu (తెలుగు)" },
 ];
 
-const getWelcomeMessage = (targetExam?: string) => {
-  const g = getGreeting();
-  const exam = targetExam || getCurrentTargetExam();
-  return `${g.formattedGreeting}\n\nI noticed you're preparing for **${exam}**.\nWhat topic would you like to discuss or work on today?`;
+const getWelcomeMessage = () => {
+  return "Hello! I'm your AI Study Mentor. Ask me anything related to learning, academics, coding, projects, research, competitive exams, or skill development.";
 };
 
-const getLanguageGreeting = (lang: string, targetExam?: string) => {
-  const welcome = getWelcomeMessage(targetExam);
+const getLanguageGreeting = (lang: string) => {
+  const welcome = getWelcomeMessage();
   const map: Record<string, string> = {
     "Auto-Detect": welcome,
     "English": welcome,
-    "Hindi": "नमस्ते! मैं आपका एआई मेंटर हूं। आज आप क्या पढ़ना चाहेंगे?",
-    "Hinglish": `Hello! I am your AI Mentor. Let me know what you would like to study today for **${targetExam || getCurrentTargetExam()}**!`,
-    "Spanish": "¡Hola! Soy tu mentor de IA. ¿Qué te gustaría estudiar hoy?",
-    "French": "Bonjour ! Je suis votre mentor IA. Qu'aimeriez-vous étudier aujourd'hui ?",
-    "German": "Hallo! Ich bin dein KI-Mentor. Was möchtest du heute lernen?",
-    "Gujarati": "નમસ્તે! હું તમારો AI મેન્ટર છું. આજે તમે શું ભણવા માંગો છો?",
-    "Marathi": "नमस्कार! मी तुमचा एआय मेंटर आहे. आज तुम्हाला काय अभ्यास करायचा आहे?",
-    "Bengali": "হ্যালো! আমি আপনার এআই মেন্টর। আজ আপনি কি পড়তে চান?",
-    "Tamil": "வணக்கம்! நான் உங்கள் AI வழிகாட்டி. இன்று நீங்கள் என்ன படிக்க விரும்புகிறீர்கள்?",
-    "Telugu": "నమస్తే! నేను మీ AI మెంటర్. ఈరోజు మీరు ఏమి చదువుకోవాలనుకుంటున్నారు?",
+    "Hindi": "नमस्ते! मैं आपका AI स्टडी मेंटर हूँ। आज आप क्या सीखना या पढ़ना चाहेंगे?",
+    "Hinglish": "Hello! Main aapka AI Study Mentor hoon. Aaj aap kya seekhna ya padhna chahenge?",
+    "Spanish": "¡Hola! Soy tu mentor de estudio IA. Pregúntame cualquier cosa sobre aprendizaje, programación o investigaciones.",
+    "French": "Bonjour ! Je suis votre mentor d'étude IA. Posez-moi vos questions sur le codage, les projets ou vos études.",
+    "German": "Hallo! Ich bin dein KI-Studienmentor. Frag mich alles rund ums Lernen, Programmieren oder Projekte.",
+    "Gujarati": "નમસ્તે! હું તમારો AI સ્ટડી મેન્ટર છું. ભણતર, કોડિંગ કે સંશોધન અંગે કંઈપણ પૂછો.",
+    "Marathi": "नमस्कार! मी तुमचा एआय स्टडी मेंटर आहे. शिक्षण, कोडिंग किंवा प्रोजेक्ट्सबद्दल काहीही विचारा.",
+    "Bengali": "হ্যালো! আমি আপনার এআই স্টাডি মেন্টর। লার্নিং, কোডিং বা গবেষণা সংক্রান্ত যেকোনো প্রশ্ন জিজ্ঞাসা করুন।",
+    "Tamil": "வணக்கம்! நான் உங்கள் AI கற்றல் வழிகாட்டி. கல்வி, கோடிங் அல்லது ஆராய்ச்சி தொடர்பான எதையும் கேளுங்கள்.",
+    "Telugu": "నమస్తే! నేను మీ AI స్టడీ మెంటర్. చదువు, కోడింగ్ లేదా ప్రాజెక్ట్‌ల గురించి ఏమైనా అడగండి.",
   };
   return map[lang] || welcome;
 };
@@ -297,15 +292,18 @@ function MsgBubble({ msg }: { msg: Message }) {
 ═══════════════════════════════════════ */
 const quickPrompts = [
   { icon: <Lightbulb size={14} />, text: "Explain Newton's Laws with examples" },
-  { icon: <BookOpen size={14} />,  text: "Explain integration by parts" },
-  { icon: <Sparkles size={14} />,  text: "What are the key topics for JEE Main?" },
-  { icon: <MessageSquare size={14}/>, text: "Compare mitosis and meiosis" },
+  { icon: <Code size={14} />,      text: "Build a MERN authentication system" },
+  { icon: <Cpu size={14} />,       text: "Difference between Machine Learning and Deep Learning" },
+  { icon: <Terminal size={14} />,  text: "Explain Binary Search" },
+  { icon: <BookOpen size={14} />,  text: "Solve this calculus problem" },
+  { icon: <FileText size={14} />,  text: "Summarize my uploaded PDF" },
+  { icon: <HelpCircle size={14} />,text: "Prepare me for Java interviews" },
+  { icon: <Cpu size={14} />,       text: "Explain Operating Systems" },
+  { icon: <Terminal size={14} />,  text: "Generate SQL queries" },
+  { icon: <Code size={14} />,      text: "Help me write Python code" },
 ];
 
 export default function AITutor() {
-  const { user, updateUser } = useAuth();
-  const activeExam = getCurrentTargetExam(user);
-
   const [convs, setConvs]         = useState<Conversation[]>(seedConvs);
   const [activeId, setActiveId]   = useState(seedConvs[0].id);
   const [input, setInput]         = useState("");
@@ -314,7 +312,6 @@ export default function AITutor() {
   const [collapsed, setCollapsed] = useState(false);
   const [search, setSearch]       = useState("");
   const [showLangMenu, setShowLangMenu] = useState(false);
-  const [showExamMenu, setShowExamMenu] = useState(false);
 
   useEffect(() => {
     const checkSidebarCollapse = () => {
@@ -334,20 +331,6 @@ export default function AITutor() {
 
   const active = convs.find(c => c.id === activeId)!;
 
-  const changeTargetExam = async (newExam: string) => {
-    setCurrentTargetExam(newExam);
-    updateUser({ exam: newExam });
-    setShowExamMenu(false);
-    try {
-      await apiRequest("/profile/update", {
-        method: "PUT",
-        body: JSON.stringify({ exam: newExam }),
-      });
-    } catch {
-      // Ignore network error if offline
-    }
-  };
-
   const updateActiveLanguage = (lang: string) => {
     if (!active) return;
     setConvs(p => p.map(c => {
@@ -356,7 +339,7 @@ export default function AITutor() {
         if (c.messages.length === 1 && c.messages[0].role === "assistant") {
           updatedMessages = [{
             ...c.messages[0],
-            content: getLanguageGreeting(lang, activeExam)
+            content: getLanguageGreeting(lang)
           }];
         }
         return { ...c, language: lang, messages: updatedMessages };
@@ -491,7 +474,6 @@ export default function AITutor() {
           chatId: serverChatId,
           question,
           language: active?.language || "Auto-Detect",
-          targetExam: activeExam,
         }),
       });
       const reply: Message = {
@@ -528,7 +510,7 @@ export default function AITutor() {
       id: uid(), title: "New Conversation", preview: "Start a new conversation…",
       timestamp: new Date(), pinned: false, isDraft: true,
       language: "Auto-Detect",
-      messages: [{ id: uid(), role: "assistant", content: getWelcomeMessage(activeExam), timestamp: new Date() }],
+      messages: [{ id: uid(), role: "assistant", content: getWelcomeMessage(), timestamp: new Date() }],
     };
     setConvs(p => [c, ...p]);
     setActiveId(c.id);
@@ -653,51 +635,9 @@ export default function AITutor() {
               <h2 className="font-bold text-sm truncate">{active?.title}</h2>
               {active?.pinned && <Pin size={11} className="text-amber-400 flex-shrink-0" />}
             </div>
-            <p className="text-xs text-muted-foreground">AI Mentor · Smart study companion</p>
+            <p className="text-xs text-muted-foreground">AI Mentor · Universal AI Study Assistant</p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Target Exam Selector Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setShowExamMenu(!showExamMenu)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20 text-xs font-semibold text-primary hover:bg-primary/20 transition-all select-none"
-              >
-                <Target size={13} className="text-primary" />
-                <span className="truncate max-w-[120px]">{activeExam}</span>
-                <ChevronDown size={12} className={`text-primary transition-transform duration-200 ${showExamMenu ? "rotate-180" : ""}`} />
-              </button>
-
-              <AnimatePresence>
-                {showExamMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowExamMenu(false)} />
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-2 w-52 bg-card border border-border rounded-2xl shadow-2xl py-1.5 z-50 max-h-64 overflow-y-auto"
-                    >
-                      <div className="px-3 py-1.5 border-b border-border mb-1">
-                        <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Select Target Exam</p>
-                      </div>
-                      {EXAM_OPTIONS.map((ex) => (
-                        <button
-                          key={ex}
-                          onClick={() => changeTargetExam(ex)}
-                          className={`flex items-center justify-between w-full px-3.5 py-2 text-left text-xs transition-colors hover:bg-muted
-                            ${activeExam === ex ? "text-primary font-bold bg-primary/10" : "text-foreground/80"}`}
-                        >
-                          <span>{ex}</span>
-                          {activeExam === ex && <Check size={12} className="text-primary" />}
-                        </button>
-                      ))}
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
-
             {/* Language Selector Dropdown */}
             <div className="relative">
               <button
@@ -771,7 +711,7 @@ export default function AITutor() {
                   <Bot size={28} className="text-white" />
                 </div>
                 <h2 className="text-xl font-bold">How can I help you today?</h2>
-                <p className="text-sm text-muted-foreground mt-1">Ask me anything — explanations, practice problems, summaries, or study plans.</p>
+                <p className="text-sm text-muted-foreground mt-1">Ask me any question — explanations, coding, summaries, interview prep, or problem solving.</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-4">
                 {quickPrompts.map(q => (
@@ -820,7 +760,7 @@ export default function AITutor() {
               <textarea ref={textareaRef} rows={1} value={input}
                 onChange={e => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }}
-                placeholder="Ask anything… (Shift+Enter for new line)"
+                placeholder="Ask any study-related question, upload notes, solve problems, explain concepts, generate summaries, or prepare for interviews..."
                 className="flex-1 bg-transparent resize-none focus:outline-none text-sm placeholder:text-muted-foreground/60 max-h-28 py-0.5" />
               <button onClick={send} disabled={!input.trim() || typing}
                 className={`p-2.5 rounded-xl flex-shrink-0 transition-all ${input.trim() && !typing ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/30" : "bg-muted text-muted-foreground cursor-not-allowed"}`}>
@@ -828,7 +768,7 @@ export default function AITutor() {
               </button>
             </div>
             <p className="text-[10px] text-muted-foreground text-center mt-2">
-              AI Mentor · For study help only · Enter to send · Shift+Enter for new line
+              AI Mentor · Universal AI Study Assistant · Enter to send · Shift+Enter for new line
             </p>
           </div>
         </div>
