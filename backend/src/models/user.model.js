@@ -97,6 +97,7 @@ const userSchema = new mongoose.Schema({
   totalQuestions: { type: Number, default: 0 },
   totalNotes: { type: Number, default: 0 },
   totalQuizzes: { type: Number, default: 0 },
+  totalStudyHours: { type: Number, default: 0 },
 
   accuracy: { type: Number, default: 0 },
   readiness: { type: Number, default: 0 },
@@ -134,6 +135,16 @@ const userSchema = new mongoose.Schema({
 
   achievements: {
     type: [String],
+    default: []
+  },
+
+  savedVideos: {
+    type: Array,
+    default: []
+  },
+
+  watchHistory: {
+    type: Array,
     default: []
   }
 

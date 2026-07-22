@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import { useAuth } from "../../context/AuthContext";
+import { getGreeting } from "../../lib/greeting";
+import { getCurrentTargetExam } from "../../lib/targetExam";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadialBarChart, RadialBar,
 } from "recharts";
@@ -74,9 +76,7 @@ function StatCard({ icon, label, value, sub, grad, iconBg }: {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const firstName = user?.fullName?.trim().split(/\s+/)[0] ?? "there";
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : hour < 21 ? "Good evening" : "Good night";
+  const greetingData = getGreeting(user?.fullName);
 
   const [tab, setTab] = useState<"week"|"month">("week");
   const completedToday = todayPlan.filter(t => t.done).length;
@@ -96,15 +96,15 @@ export default function Dashboard() {
         <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className="px-2.5 py-1 rounded-full bg-white/15 text-white/90 text-xs font-medium flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" /> Welcome — set up your exam
+              <span className="px-3 py-1 rounded-full bg-white/15 text-white text-xs font-semibold flex items-center gap-1.5 backdrop-blur-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" /> Target Exam: 🎯 {getCurrentTargetExam(user)}
               </span>
             </div>
             <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
-              {greeting}, {firstName}! 👋
+              {greetingData.formattedGreeting}
             </h1>
-            <p className="text-white/70 mt-1.5 text-sm">
-              Start studying to build your streak and earn XP!
+            <p className="text-white/80 mt-1.5 text-sm font-medium">
+              {greetingData.subtitle}
             </p>
             {/* streak row */}
             <div className="flex items-center gap-4 mt-4">

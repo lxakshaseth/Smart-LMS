@@ -1,174 +1,140 @@
-const { generateAIResponse } = require("../services/ai.service");
+const { buildMCQPrompt } = require("../services/mcq/prompt.service");
+const { callGroqMCQ } = require("../services/mcq/groq.service");
+const { parseAndProcessMCQs } = require("../services/mcq/questionParser");
+
 const MockTest = require("../models/mocktest.model");
 const User = require("../models/user.model");
 const Planner = require("../models/planner.model");
 
 // =====================================================
-// GENERATE MOCK TEST (AI)
+// 1️⃣ GENERATE DYNAMIC MCQ EXAMINATION PAPER
+// POST /api/mocktest/generate
 // =====================================================
 exports.generateTest = async (req, res) => {
   try {
-    const { subject, topic, excludeQuestions = [] } = req.body;
+    const category = req.body.category || req.body.subject;
+    const difficulty = req.body.difficulty || "Medium";
+    const questionCount = Math.min(Math.max(Number(req.body.questionCount) || 10, 5), 30);
 
-    if (!subject || !topic) {
+    if (!category) {
       return res.status(400).json({
         success: false,
-        message: "Subject and topic required"
+        message: "Category is required to generate examination paper."
       });
     }
 
-    let excludeClause = "";
-    if (Array.isArray(excludeQuestions) && excludeQuestions.length > 0) {
-      excludeClause = `\nCRITICAL: You MUST NOT generate any of the following questions (they have already been answered by this user):\n${excludeQuestions.map(q => `- "${q}"`).join("\n")}\n`;
-    }
+    // 1. Build prompt with random seed, timestamp, UUID, and syllabus
+    const promptPayload = buildMCQPrompt({ category, difficulty, questionCount });
 
-    const prompt = `
-Generate 5 unique, diverse, and randomized MCQs for ${subject} on topic ${topic}.
-Session Seed: ${Math.random().toString(36).substring(7)}
-${excludeClause}
-Return ONLY valid JSON structure:
-{
-  "questions": [
-    {
-      "question": "...",
-      "options": ["Option text 1", "Option text 2", "Option text 3", "Option text 4"],
-      "correctAnswer": 0,
-      "explanation": "Brief explanation of why this option is correct."
-    }
-  ]
-}
+    // 2. Execute Groq API call with high entropy (temp 1.2, top_p 0.95) & auto-retry
+    const rawAiText = await callGroqMCQ(promptPayload, questionCount, 3);
 
-Note:
-- The questions generated must be completely new and randomized for each request. Avoid repetitions.
-- "options" must contain 4 distinct plausible options.
-- "correctAnswer" must be a number (0, 1, 2, or 3) representing the index of the correct option in the "options" array.
-`;
+    // 3. Extract JSON, validate questions, shuffle options & update answer indices
+    const processedResult = parseAndProcessMCQs(rawAiText);
 
-    const aiText = await generateAIResponse(prompt, { temperature: 0.95 });
-
-    let cleaned = aiText
-      .replace(/```json/gi, "")
-      .replace(/```/g, "")
-      .trim();
-
-    const start = cleaned.indexOf("{");
-    const end = cleaned.lastIndexOf("}");
-
-    if (start === -1 || end === -1) {
-      throw new Error("AI did not return valid JSON");
-    }
-
-    cleaned = cleaned.substring(start, end + 1);
-
-    const parsed = JSON.parse(cleaned);
-
-    res.json(parsed);
+    // 4. Return clean JSON response
+    return res.json({
+      success: true,
+      category,
+      difficulty,
+      questionCount: processedResult.questionCount,
+      paperHash: processedResult.paperHash,
+      questions: processedResult.questions
+    });
 
   } catch (err) {
-    console.error("Mock Test Error:", err.message);
-    res.status(500).json({
+    console.error("❌ Mock Test Generation Error:", err.message);
+    return res.status(err.status || 500).json({
       success: false,
-      message: err.message || "Failed to generate test"
+      message: err.message || "Failed to generate examination paper."
     });
   }
 };
 
 // =====================================================
-// SUBMIT MOCK TEST RESULT
+// 2️⃣ SUBMIT MOCK TEST RESULT & UPDATE XP / ANALYTICS
+// POST /api/mocktest/submit
 // =====================================================
 exports.submitTest = async (req, res) => {
   try {
     const {
       subject,
+      category,
       topic,
       totalQuestions,
       correctAnswers,
-      weakAreas
+      weakAreas,
+      timeTaken
     } = req.body;
+
+    const targetCategory = category || subject || "General";
 
     if (!totalQuestions || correctAnswers == null) {
       return res.status(400).json({
         success: false,
-        message: "Invalid test data"
+        message: "Invalid test evaluation data."
       });
     }
 
-    const accuracy = Math.round(
-      (correctAnswers / totalQuestions) * 100
-    );
+    const accuracy = Math.round((correctAnswers / totalQuestions) * 100);
 
-    // =====================================================
-    // 1️⃣ Save Mock Test
-    // =====================================================
+    // 1. Save Mock Test record
     await MockTest.create({
       user: req.user.id,
-      subject,
-      topic,
+      subject: targetCategory,
+      topic: topic || targetCategory,
       totalQuestions,
       correctAnswers,
       accuracy,
-      weakAreas
+      weakAreas,
+      timeTaken
     });
 
-    // =====================================================
-    // 2️⃣ Update User XP + Streak + Rank
-    // =====================================================
+    // 2. Update User XP + Streak + Rank
     const xpEarned = correctAnswers * 5;
-
     const user = await User.findById(req.user.id);
 
-    user.xp += xpEarned;
-    user.totalQuizzes += 1;
+    if (user) {
+      user.xp += xpEarned;
+      user.totalQuizzes += 1;
 
-    const today = new Date().toISOString().split("T")[0];
+      const today = new Date().toISOString().split("T")[0];
+      if (user.lastActiveDate !== today) {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yDate = yesterday.toISOString().split("T")[0];
 
-    if (user.lastActiveDate !== today) {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yDate = yesterday.toISOString().split("T")[0];
-
-      if (user.lastActiveDate === yDate) {
-        user.streak += 1;
-      } else {
-        user.streak = 1;
+        if (user.lastActiveDate === yDate) {
+          user.streak += 1;
+        } else {
+          user.streak = 1;
+        }
+        user.lastActiveDate = today;
       }
 
-      user.lastActiveDate = today;
+      user.updateLevelAndRank();
+      await user.save();
     }
 
-    user.updateLevelAndRank();
-    await user.save();
-
-    // =====================================================
-    // 3️⃣ Update Planner Intelligence
-    // =====================================================
+    // 3. Update Planner Analytics & Risk Status
     let planner = await Planner.findOne({ user: req.user.id });
-
     if (!planner) {
       planner = await Planner.create({ user: req.user.id });
     }
 
-    // ---- Accuracy history ----
     planner.lastMockAccuracy = accuracy;
 
-    // ---- Weak subject detection (frequency based) ----
     if (weakAreas && weakAreas.length > 0) {
-
       const freqMap = {};
-
       weakAreas.forEach(area => {
         freqMap[area] = (freqMap[area] || 0) + 1;
       });
-
-      const sortedWeak = Object.entries(freqMap)
-        .sort((a, b) => b[1] - a[1]);
-
+      const sortedWeak = Object.entries(freqMap).sort((a, b) => b[1] - a[1]);
       planner.weakSubject = sortedWeak[0][0];
     } else {
-      planner.weakSubject = subject;
+      planner.weakSubject = targetCategory;
     }
 
-    // ---- Risk auto calculation ----
     if (accuracy < 50) {
       planner.riskLevel = "High";
     } else if (accuracy < 75) {
@@ -179,25 +145,22 @@ exports.submitTest = async (req, res) => {
 
     await planner.save();
 
-    // =====================================================
-    // 4️⃣ Response
-    // =====================================================
-    res.json({
+    return res.json({
       success: true,
-      message: "Test submitted successfully",
+      message: "Test evaluation submitted successfully.",
       xpEarned,
       accuracy,
-      level: user.level,
-      rank: user.rank,
+      level: user ? user.level : 1,
+      rank: user ? user.rank : "Novice",
       weakSubject: planner.weakSubject,
       riskLevel: planner.riskLevel
     });
 
   } catch (err) {
-    console.error("Submit Test Error:", err);
-    res.status(500).json({
+    console.error("❌ Submit Test Error:", err);
+    return res.status(500).json({
       success: false,
-      message: "Failed to submit test"
+      message: "Failed to submit test evaluation."
     });
   }
 };

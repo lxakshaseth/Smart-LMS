@@ -4,6 +4,7 @@ import { Button } from "../ui/button";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
 import { apiRequest } from "../../lib/api";
+import { getCurrentTargetExam, setCurrentTargetExam, EXAM_OPTIONS } from "../../lib/targetExam";
 import { useNavigate } from "react-router";
 import {
   User, Bell, Shield, Palette, LogOut, Camera, Mail, Phone,
@@ -56,15 +57,15 @@ function TextField({ label, required, type = "text", placeholder, defaultValue, 
   );
 }
 
-function SelectField({ label, required, options, defaultValue, icon }: {
-  label: string; required?: boolean; options: string[]; defaultValue?: string; icon?: React.ReactNode;
+function SelectField({ label, required, options, defaultValue, value, onChange, icon }: {
+  label: string; required?: boolean; options: string[]; defaultValue?: string; value?: string; onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void; icon?: React.ReactNode;
 }) {
   return (
     <div>
       {label && <FieldLabel label={label} required={required} />}
       <div className="relative">
         {icon && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{icon}</span>}
-        <select defaultValue={defaultValue}
+        <select value={value !== undefined ? value : defaultValue} onChange={onChange}
           className={`w-full ${icon ? "pl-10" : "px-4"} pr-8 py-2.5 rounded-xl bg-muted/50 border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all text-sm appearance-none`}>
           <option value="">Select…</option>
           {options.map(o => <option key={o} value={o}>{o}</option>)}
@@ -127,6 +128,7 @@ export default function Settings() {
   const [firstName, setFirstName]   = useState(user?.fullName?.split(/\s+/)[0] ?? "");
   const [lastName, setLastName]     = useState(user?.fullName?.split(/\s+/).slice(1).join(" ") ?? "");
   const [username, setUsername]     = useState(user?.username ?? "");
+  const [targetExam, setTargetExam] = useState(user?.exam ?? getCurrentTargetExam(user));
   const { updateUser }              = useAuth();
 
   useEffect(() => {
@@ -134,31 +136,38 @@ export default function Settings() {
       setFirstName(user.fullName?.split(/\s+/)[0] ?? "");
       setLastName(user.fullName?.split(/\s+/).slice(1).join(" ") ?? "");
       setUsername(user.username ?? "");
+      if (user.exam) {
+        setTargetExam(user.exam);
+      }
     }
   }, [user]);
 
   const save = async () => {
     const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
-    if (!fullName || !username.trim()) return;
+    const activeName = fullName || user?.fullName || "User";
+    const activeUsername = username.trim() || user?.username || "user";
 
     try {
-      const response = await apiRequest<{ success: boolean; message: string; data: { name: string; username: string } }>(
+      const response = await apiRequest<{ success: boolean; message: string; data: { name: string; username: string; exam?: string } }>(
         "/profile/update",
         {
           method: "PUT",
           body: JSON.stringify({
-            name: fullName,
-            username: username.trim()
+            name: activeName,
+            username: activeUsername,
+            exam: targetExam
           })
         }
       );
 
       if (response.success && updateUser) {
         updateUser({
-          fullName,
-          username: username.trim(),
-          avatar: fullName.split(/\s+/).map(w => w[0]).join("").toUpperCase().slice(0, 2)
+          fullName: activeName,
+          username: activeUsername,
+          exam: targetExam,
+          avatar: activeName.split(/\s+/).map(w => w[0]).join("").toUpperCase().slice(0, 2)
         });
+        setCurrentTargetExam(targetExam);
         setSaved(true);
         setTimeout(() => setSaved(false), 2500);
       }
@@ -329,7 +338,7 @@ export default function Settings() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <SelectField label="Current Class / Level"   required options={classOptions}  defaultValue=""             icon={<GraduationCap size={14} />} />
               <SelectField label="School / College Board"  required options={boardOptions}  defaultValue=""             icon={<BookOpen size={14} />} />
-              <SelectField label="Primary Target Exam"     required options={examOptions}   defaultValue={user?.exam ?? ""} icon={<Target size={14} />} />
+              <SelectField label="Primary Target Exam"     required options={EXAM_OPTIONS}  value={targetExam} onChange={(e) => setTargetExam(e.target.value)} icon={<Target size={14} />} />
               <SelectField label="Secondary Target Exam"            options={examOptions}   defaultValue={user?.exam ?? ""} icon={<Target size={14} />} />
               <TextField   label="School / Institution Name" required placeholder="e.g. Delhi Public School" defaultValue="" icon={<BookOpen size={14} />} />
               <SelectField label="Daily Study Goal"        required options={studyHours}    defaultValue=""             icon={<Clock size={14} />} />

@@ -32,6 +32,7 @@ router.get("/", protect, async (req, res) => {
       data: {
         name: user.username || "User",
         email: user.email || "",
+        exam: user.exam || "",
         xp,
         level,
         levelProgress,
@@ -63,15 +64,7 @@ UPDATE PROFILE
 */
 router.put("/update", protect, async (req, res) => {
   try {
-    const { username, name } = req.body;
-
-    const displayVal = (name || username || "").trim();
-    if (!displayVal || displayVal.length < 3) {
-      return res.status(400).json({
-        success: false,
-        message: "Name/Username must be at least 3 characters"
-      });
-    }
+    const { username, name, exam, weakSubject, strongSubject } = req.body;
 
     const user = await User.findById(req.user._id);
 
@@ -82,10 +75,26 @@ router.put("/update", protect, async (req, res) => {
       });
     }
 
-    if (username) {
-      user.username = username.trim();
+    if (name || username) {
+      const displayVal = (name || username || "").trim();
+      if (displayVal && displayVal.length >= 3) {
+        if (username) user.username = username.trim();
+        user.name = displayVal;
+      }
     }
-    user.name = displayVal;
+
+    if (typeof exam === "string") {
+      user.exam = exam.trim();
+    }
+
+    if (typeof weakSubject === "string") {
+      user.weakSubject = weakSubject.trim();
+    }
+
+    if (typeof strongSubject === "string") {
+      user.strongSubject = strongSubject.trim();
+    }
+
     await user.save();
 
     return res.json({
@@ -93,7 +102,10 @@ router.put("/update", protect, async (req, res) => {
       message: "Profile updated successfully",
       data: {
         username: user.username,
-        name: user.name
+        name: user.name,
+        exam: user.exam,
+        weakSubject: user.weakSubject,
+        strongSubject: user.strongSubject
       }
     });
 

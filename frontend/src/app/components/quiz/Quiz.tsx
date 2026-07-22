@@ -2,24 +2,12 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
-import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
-import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";
-import { Label } from "../ui/label";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from "../ui/alert-dialog";
+import { RadioGroup } from "../ui/radio-group";
 import {
   CheckCircle, XCircle, Trophy, Zap, GraduationCap, Rocket, Baby, BookOpen,
-  Shield, Brain, School, Users, Briefcase, Globe, Calculator, Award, Landmark,
-  Train, Banknote, Languages, Atom, FlaskConical, ChevronLeft, ChevronRight,
-  Clock, Eye, RotateCcw, AlertTriangle, Check, HelpCircle
+  Shield, Brain, School, Users, Briefcase, Globe, Award, Landmark,
+  Train, Banknote, ChevronLeft, ChevronRight, Atom, Calculator, Languages,
+  Clock, RotateCcw, Check, HelpCircle, AlertCircle, Sparkles, Filter, Play
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../ui/utils";
@@ -32,22 +20,37 @@ interface Question {
   question: string;
   options: string[];
   correctAnswer: number;
+  explanation?: string;
 }
 
-type QuizMode =
-  | "nursery-lkg" | "class-1-5" | "class-6-10" | "class-11-12"
-  | "jee-neet" | "engineering" | "gate" | "cat"
-  | "defence" | "upsc" | "ssc" | "banking" | "railway"
-  | "general-knowledge" | "english" | "mathematics" | "science";
+export type CategoryKey =
+  | "Nursery-LKG" | "Class 1-5" | "Class 6-10" | "Class 11-12"
+  | "JEE" | "NEET" | "Engineering" | "GATE" | "CAT"
+  | "Defence" | "UPSC" | "SSC" | "Banking" | "Railway"
+  | "General Knowledge" | "English" | "Mathematics" | "Science";
 
+export type DifficultyLevel = "Easy" | "Medium" | "Hard" | "Mixed";
+export type QuestionCount = 5 | 10 | 20 | 30;
 
 /* ═══════════════════════════════════
-   HELPERS & HOOKS
+   HELPERS
    ═══════════════════════════════════ */
-function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
+function formatTimeHHMMSS(seconds: number): string {
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
+  if (hrs > 0) {
+    return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  }
   return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+}
+
+function calculateTestDuration(difficulty: DifficultyLevel, count: number): number {
+  let secondsPerQuestion = 75; // Medium default
+  if (difficulty === "Easy") secondsPerQuestion = 45;
+  if (difficulty === "Hard") secondsPerQuestion = 120;
+  if (difficulty === "Mixed") secondsPerQuestion = 80;
+  return count * secondsPerQuestion;
 }
 
 function useCounter(target: number, duration: number = 800) {
@@ -62,7 +65,7 @@ function useCounter(target: number, duration: number = 800) {
     }
 
     const totalMs = duration;
-    const incrementTime = Math.abs(Math.floor(totalMs / end));
+    const incrementTime = Math.abs(Math.floor(totalMs / (end || 1)));
 
     const timer = setInterval(() => {
       start += 1;
@@ -78,179 +81,160 @@ function useCounter(target: number, duration: number = 800) {
   return count;
 }
 
-function useQuizState(quizMode: QuizMode | null, totalQuestions: number) {
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
-  const [visitedQuestions, setVisitedQuestions] = useState<number[]>([]);
-  const [markedForReview, setMarkedForReview] = useState<number[]>([]);
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [showResult, setShowResult] = useState(false);
+/* ═══════════════════════════════════
+   SETUP MODAL COMPONENT
+   ═══════════════════════════════════ */
+function TestSetupModal({
+  category,
+  onClose,
+  onStart,
+}: {
+  category: CategoryKey;
+  onClose: () => void;
+  onStart: (difficulty: DifficultyLevel, count: QuestionCount) => void;
+}) {
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>("Medium");
+  const [questionCount, setQuestionCount] = useState<QuestionCount>(10);
 
-  const localStorageKey = `smart_ai_lms_quiz_state_${quizMode}`;
+  const durationSec = calculateTestDuration(difficulty, questionCount);
 
-  // Initial load or mode change
-  useEffect(() => {
-    if (!quizMode || totalQuestions === 0) return;
-    const saved = localStorage.getItem(localStorageKey);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setCurrentQuestion(parsed.currentQuestion ?? 0);
-        setSelectedAnswers(parsed.selectedAnswers ?? {});
-        setVisitedQuestions(parsed.visitedQuestions ?? [0]);
-        setMarkedForReview(parsed.markedForReview ?? []);
-        setIsSubmitted(parsed.isSubmitted ?? false);
-        setTimeLeft(parsed.timeLeft ?? totalQuestions * 60);
-        setShowResult(parsed.isSubmitted ?? false);
-      } catch (e) {
-        console.error("Failed to parse saved quiz state", e);
-      }
-    } else {
-      setCurrentQuestion(0);
-      setSelectedAnswers({});
-      setVisitedQuestions([0]);
-      setMarkedForReview([]);
-      setIsSubmitted(false);
-      setTimeLeft(totalQuestions * 60);
-      setShowResult(false);
-    }
-  }, [quizMode, totalQuestions, localStorageKey]);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-200">
+      <Card className="w-full max-w-lg p-6 space-y-6 shadow-2xl border-border bg-card relative overflow-hidden">
+        <div className="flex items-center justify-between border-b border-border pb-4">
+          <div>
+            <span className="text-xs font-extrabold text-primary uppercase tracking-widest">Configure Examination</span>
+            <h2 className="text-2xl font-black text-foreground mt-0.5">{category}</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors font-bold text-sm"
+          >
+            ✕
+          </button>
+        </div>
 
-  // Sync state to local storage
-  useEffect(() => {
-    if (!quizMode || isSubmitted) return;
-    const state = {
-      currentQuestion,
-      selectedAnswers,
-      visitedQuestions,
-      markedForReview,
-      isSubmitted,
-      timeLeft,
-    };
-    localStorage.setItem(localStorageKey, JSON.stringify(state));
-  }, [quizMode, currentQuestion, selectedAnswers, visitedQuestions, markedForReview, isSubmitted, timeLeft, localStorageKey]);
+        {/* Difficulty Selection */}
+        <div className="space-y-3">
+          <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <Filter className="w-3.5 h-3.5 text-primary" />
+            Select Difficulty Level
+          </label>
+          <div className="grid grid-cols-2 gap-2.5">
+            {(["Easy", "Medium", "Hard", "Mixed"] as DifficultyLevel[]).map((level) => {
+              const isSelected = difficulty === level;
+              return (
+                <button
+                  key={level}
+                  type="button"
+                  onClick={() => setDifficulty(level)}
+                  className={cn(
+                    "p-3 rounded-xl border font-bold text-sm transition-all duration-200 text-left flex items-center justify-between",
+                    isSelected
+                      ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/40 shadow-sm"
+                      : "border-border hover:bg-muted text-muted-foreground"
+                  )}
+                >
+                  <span>{level}</span>
+                  {isSelected && <Check className="w-4 h-4 text-primary" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-  // Timer countdown
-  useEffect(() => {
-    if (!quizMode || isSubmitted || showResult || timeLeft <= 0) return;
-    
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          // Auto submit
-          setIsSubmitted(true);
-          setShowResult(true);
-          localStorage.removeItem(localStorageKey);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+        {/* Question Count Selection */}
+        <div className="space-y-3">
+          <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-primary" />
+            Number of Questions
+          </label>
+          <div className="grid grid-cols-4 gap-2">
+            {([5, 10, 20, 30] as QuestionCount[]).map((num) => {
+              const isSelected = questionCount === num;
+              return (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => setQuestionCount(num)}
+                  className={cn(
+                    "py-2.5 rounded-xl border font-bold text-sm transition-all duration-200 text-center",
+                    isSelected
+                      ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/40 shadow-sm"
+                      : "border-border hover:bg-muted text-muted-foreground"
+                  )}
+                >
+                  {num} Qs
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-    return () => clearInterval(interval);
-  }, [quizMode, isSubmitted, showResult, localStorageKey, timeLeft > 0]);
+        {/* Estimated Info */}
+        <div className="p-3.5 rounded-xl bg-muted/40 border border-border flex items-center justify-between text-xs font-medium text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-primary" />
+            <span>Estimated Duration: <strong>{formatTimeHHMMSS(durationSec)}</strong></span>
+          </div>
+          <span className="text-[11px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">Groq AI Powered</span>
+        </div>
 
-  const handleSelectAnswer = useCallback((qIndex: number, optionIndex: number) => {
-    if (isSubmitted) return;
-    setSelectedAnswers((prev) => ({ ...prev, [qIndex]: optionIndex }));
-    setVisitedQuestions((prev) => {
-      if (!prev.includes(qIndex)) return [...prev, qIndex];
-      return prev;
-    });
-  }, [isSubmitted]);
-
-  const toggleMarkForReview = useCallback((qIndex: number) => {
-    if (isSubmitted) return;
-    setMarkedForReview((prev) => {
-      if (prev.includes(qIndex)) {
-        return prev.filter((i) => i !== qIndex);
-      } else {
-        return [...prev, qIndex];
-      }
-    });
-  }, [isSubmitted]);
-
-  const jumpToQuestion = useCallback((qIndex: number) => {
-    setCurrentQuestion(qIndex);
-    setVisitedQuestions((prev) => {
-      if (!prev.includes(qIndex)) return [...prev, qIndex];
-      return prev;
-    });
-  }, []);
-
-  const handleNext = useCallback(() => {
-    if (currentQuestion < totalQuestions - 1) {
-      jumpToQuestion(currentQuestion + 1);
-    }
-  }, [currentQuestion, totalQuestions, jumpToQuestion]);
-
-  const handlePrev = useCallback(() => {
-    if (currentQuestion > 0) {
-      jumpToQuestion(currentQuestion - 1);
-    }
-  }, [currentQuestion, jumpToQuestion]);
-
-  const handleRestart = useCallback(() => {
-    setCurrentQuestion(0);
-    setSelectedAnswers({});
-    setVisitedQuestions([0]);
-    setMarkedForReview([]);
-    setIsSubmitted(false);
-    setShowResult(false);
-    setTimeLeft(totalQuestions * 60);
-    localStorage.removeItem(localStorageKey);
-  }, [totalQuestions, localStorageKey]);
-
-  return {
-    currentQuestion,
-    selectedAnswers,
-    visitedQuestions,
-    markedForReview,
-    isSubmitted,
-    isSubmitting,
-    timeLeft,
-    showResult,
-    handleSelectAnswer,
-    toggleMarkForReview,
-    jumpToQuestion,
-    handleNext,
-    handlePrev,
-    handleRestart,
-    setIsSubmitted,
-    setShowResult,
-    setIsSubmitting,
-    localStorageKey,
-  };
+        {/* Start Button */}
+        <div className="flex gap-3 pt-2">
+          <Button type="button" variant="outline" onClick={onClose} className="flex-1 py-2.5 rounded-xl">
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={() => onStart(difficulty, questionCount)}
+            className="flex-1 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md shadow-primary/20"
+          >
+            <Play className="w-4 h-4 fill-white" />
+            Generate Test
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
 }
 
 /* ═══════════════════════════════════
-   SUB-COMPONENTS
+   SUB-COMPONENTS FOR EXAM VIEW
    ═══════════════════════════════════ */
-function QuizProgress({ total, answeredCount }: { total: number; answeredCount: number }) {
-  const percentage = total > 0 ? Math.round((answeredCount / total) * 100) : 0;
-  const remaining = total - answeredCount;
-
+function OptionItem({
+  label,
+  text,
+  selected,
+  disabled,
+}: {
+  label: string;
+  text: string;
+  selected: boolean;
+  disabled: boolean;
+}) {
   return (
-    <Card className="p-5 space-y-4">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-muted-foreground">Progress</span>
-        <span className="text-lg font-bold text-primary">{percentage}%</span>
+    <div
+      className={cn(
+        "flex items-center gap-4 p-4 rounded-xl border transition-all duration-200 cursor-pointer text-left",
+        selected
+          ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary/30 shadow-sm"
+          : "border-border hover:bg-muted/50 text-foreground",
+        disabled && "opacity-60 cursor-not-allowed"
+      )}
+    >
+      <div
+        className={cn(
+          "w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs flex-shrink-0 transition-colors",
+          selected ? "bg-primary text-white" : "bg-muted text-muted-foreground"
+        )}
+      >
+        {label}
       </div>
-      <Progress value={percentage} className="h-2" />
-      <div className="flex justify-between text-xs text-muted-foreground pt-1">
-        <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex-shrink-0" />
-          <span>Answered: <strong>{answeredCount}</strong></span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-muted flex-shrink-0" />
-          <span>Remaining: <strong>{remaining}</strong></span>
-        </div>
-      </div>
-    </Card>
+      <span className="font-medium text-sm md:text-base leading-relaxed flex-1">{text}</span>
+    </div>
   );
 }
 
@@ -270,8 +254,8 @@ function QuestionPalette({
   onSelect: (index: number) => void;
 }) {
   return (
-    <Card className="p-5 space-y-4">
-      <h3 className="text-sm font-semibold text-muted-foreground">Question Navigator</h3>
+    <Card className="p-5 space-y-4 border-border bg-card">
+      <h3 className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Question Palette</h3>
       <div className="grid grid-cols-5 gap-2">
         {Array.from({ length: total }).map((_, idx) => {
           const isCurrent = idx === current;
@@ -291,7 +275,7 @@ function QuestionPalette({
           }
 
           if (isCurrent) {
-            borderClass = "border-primary shadow-sm ring-1 ring-primary/40";
+            borderClass = "border-primary shadow-md ring-2 ring-primary/40";
           }
 
           return (
@@ -300,7 +284,7 @@ function QuestionPalette({
               type="button"
               onClick={() => onSelect(idx)}
               className={cn(
-                "w-9 h-9 rounded-lg font-bold text-sm transition-all flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                "w-9 h-9 rounded-xl font-extrabold text-xs transition-all flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                 bgClass,
                 borderClass
               )}
@@ -312,206 +296,25 @@ function QuestionPalette({
       </div>
 
       {/* Legend */}
-      <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-3 border-t border-border text-[11px] text-muted-foreground">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2 pt-3 border-t border-border text-[11px] font-medium text-muted-foreground">
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded bg-muted flex-shrink-0" />
-          <span>Not visited</span>
+          <span className="w-2.5 h-2.5 rounded bg-muted flex-shrink-0" />
+          <span>Unvisited</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded bg-blue-500 flex-shrink-0" />
+          <span className="w-2.5 h-2.5 rounded bg-blue-500 flex-shrink-0" />
           <span>Visited</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded bg-emerald-500 flex-shrink-0" />
+          <span className="w-2.5 h-2.5 rounded bg-emerald-500 flex-shrink-0" />
           <span>Answered</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded bg-amber-500 flex-shrink-0" />
-          <span>Review</span>
+          <span className="w-2.5 h-2.5 rounded bg-amber-500 flex-shrink-0" />
+          <span>Marked</span>
         </div>
       </div>
     </Card>
-  );
-}
-
-function OptionItem({
-  value,
-  label,
-  text,
-  selected,
-  disabled,
-}: {
-  value: string;
-  label: string;
-  text: string;
-  selected: boolean;
-  disabled: boolean;
-}) {
-  return (
-    <RadioGroupPrimitive.Item
-      value={value}
-      disabled={disabled}
-      className={cn(
-        "group w-full flex items-center gap-4 p-4 rounded-xl border text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary cursor-pointer",
-        selected
-          ? "border-primary bg-primary/5 shadow-xs"
-          : "border-border hover:border-primary/50 hover:bg-muted/30",
-        disabled && "opacity-75 cursor-not-allowed"
-      )}
-    >
-      {/* Circle indicator */}
-      <div
-        className={cn(
-          "w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 transition-all duration-200",
-          selected ? "border-primary bg-primary" : "border-muted-foreground/30 group-hover:border-primary/50"
-        )}
-      >
-        <motion.div
-          initial={false}
-          animate={{ scale: selected ? 1 : 0 }}
-          transition={{ type: "spring", stiffness: 500, damping: 30 }}
-          className="w-2.5 h-2.5 bg-white rounded-full"
-        />
-      </div>
-
-      <div className="flex gap-2 items-start text-sm select-none">
-        <span className="font-bold text-muted-foreground">{label}.</span>
-        <span className="font-medium text-foreground">{text}</span>
-      </div>
-    </RadioGroupPrimitive.Item>
-  );
-}
-
-function QuestionCard({
-  question,
-  selectedOption,
-  onSelect,
-  isMarked,
-  onToggleMark,
-  disabled,
-  questionNumber,
-  totalQuestions,
-  hasError,
-}: {
-  question: Question;
-  selectedOption?: number;
-  onSelect: (index: number) => void;
-  isMarked: boolean;
-  onToggleMark: () => void;
-  disabled: boolean;
-  questionNumber: number;
-  totalQuestions: number;
-  hasError?: boolean;
-}) {
-  return (
-    <Card className={cn(
-      "p-6 md:p-8 space-y-6 relative overflow-hidden border transition-all duration-200",
-      hasError ? "border-destructive ring-1 ring-destructive/20 bg-destructive/5" : "border-border"
-    )}>
-      {/* Card Header Info */}
-      <div className="flex items-center justify-between border-b border-border pb-4">
-        <div>
-          <span className="text-xs font-bold text-primary uppercase tracking-wider">
-            Question {questionNumber} of {totalQuestions}
-          </span>
-          <h2 className="text-xl font-bold text-foreground mt-1">Practice Exam</h2>
-        </div>
-
-        {/* Mark for Review Button */}
-        <button
-          type="button"
-          onClick={onToggleMark}
-          disabled={disabled}
-          className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all duration-200",
-            isMarked
-              ? "bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20"
-              : "border-border hover:bg-muted text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Award className={cn("w-4 h-4", isMarked && "fill-amber-500")} />
-          {isMarked ? "Marked for Review" : "Mark for Review"}
-        </button>
-      </div>
-
-      {/* Question Text */}
-      <h3 className="text-lg font-bold text-foreground leading-relaxed">
-        {question.question}
-      </h3>
-
-      {/* Options List */}
-      <RadioGroup
-        value={selectedOption !== undefined ? String(selectedOption) : ""}
-        onValueChange={(val) => onSelect(parseInt(val))}
-        className="space-y-3"
-      >
-        {question.options.map((option, index) => (
-          <OptionItem
-            key={index}
-            value={String(index)}
-            label={String.fromCharCode(65 + index)}
-            text={option}
-            selected={selectedOption === index}
-            disabled={disabled}
-          />
-        ))}
-      </RadioGroup>
-    </Card>
-  );
-}
-
-function QuizNavigation({
-  currentQuestion,
-  totalQuestions,
-  onPrev,
-  onNext,
-  onSubmit,
-  disabled,
-}: {
-  currentQuestion: number;
-  totalQuestions: number;
-  onPrev: () => void;
-  onNext: () => void;
-  onSubmit: () => void;
-  disabled: boolean;
-}) {
-  const isFirst = currentQuestion === 0;
-  const isLast = currentQuestion === totalQuestions - 1;
-
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <Button
-        variant="ghost"
-        onClick={onPrev}
-        disabled={isFirst || disabled}
-        className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border"
-      >
-        <ChevronLeft className="w-4 h-4" />
-        Previous
-      </Button>
-
-      {isLast ? (
-        <Button
-          variant="accent"
-          onClick={onSubmit}
-          disabled={disabled}
-          className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold shadow-md shadow-violet-500/20"
-        >
-          <CheckCircle className="w-4 h-4" />
-          Submit Quiz
-        </Button>
-      ) : (
-        <Button
-          variant="primary"
-          onClick={onNext}
-          disabled={disabled}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl"
-        >
-          Next
-          <ChevronRight className="w-4 h-4" />
-        </Button>
-      )}
-    </div>
   );
 }
 
@@ -521,80 +324,73 @@ function ResultSummary({
   wrong,
   skipped,
   percentage,
-  score,
-  onRetry,
-  onChangeMode,
+  xpEarned,
+  timeTaken,
+  category,
+  difficulty,
+  onRetake,
+  onChangeCategory,
 }: {
   total: number;
   correct: number;
   wrong: number;
   skipped: number;
   percentage: number;
-  score: number;
-  onRetry: () => void;
-  onChangeMode: () => void;
+  xpEarned: number;
+  timeTaken: number;
+  category: CategoryKey;
+  difficulty: DifficultyLevel;
+  onRetake: () => void;
+  onChangeCategory: () => void;
 }) {
   const animatedScore = useCounter(correct);
   const animatedPercent = useCounter(percentage);
-  const animatedXp = useCounter(score, 1200);
+  const animatedXp = useCounter(xpEarned, 1200);
 
   let rating = "Needs Improvement";
   let badgeColor = "from-red-500 to-orange-500 shadow-red-500/20";
-  if (percentage >= 95) {
+  if (percentage >= 90) {
     rating = "Outstanding";
     badgeColor = "from-violet-600 to-fuchsia-600 shadow-violet-500/20";
-  } else if (percentage >= 80) {
+  } else if (percentage >= 75) {
     rating = "Excellent";
     badgeColor = "from-emerald-500 to-teal-500 shadow-emerald-500/20";
-  } else if (percentage >= 70) {
+  } else if (percentage >= 60) {
     rating = "Good";
     badgeColor = "from-blue-500 to-indigo-500 shadow-blue-500/20";
-  } else if (percentage >= 50) {
+  } else if (percentage >= 40) {
     rating = "Average";
     badgeColor = "from-amber-500 to-orange-500 shadow-amber-500/20";
   }
 
-  // Trigger confetti if score is high
   useEffect(() => {
-    if (percentage >= 90) {
+    if (percentage >= 80) {
       const duration = 2.5 * 1000;
       const end = Date.now() + duration;
-
       const frame = () => {
-        confetti({
-          particleCount: 4,
-          angle: 60,
-          spread: 55,
-          origin: { x: 0 }
-        });
-        confetti({
-          particleCount: 4,
-          angle: 120,
-          spread: 55,
-          origin: { x: 1 }
-        });
-
-        if (Date.now() < end) {
-          requestAnimationFrame(frame);
-        }
+        confetti({ particleCount: 4, angle: 60, spread: 55, origin: { x: 0 } });
+        confetti({ particleCount: 4, angle: 120, spread: 55, origin: { x: 1 } });
+        if (Date.now() < end) requestAnimationFrame(frame);
       };
       frame();
     }
   }, [percentage]);
 
   return (
-    <Card className="p-8 text-center bg-gradient-to-br from-card to-muted/20 border border-border max-w-2xl mx-auto space-y-8">
+    <Card className="p-8 text-center bg-card border border-border max-w-3xl mx-auto space-y-8 shadow-xl">
       <div className="space-y-3">
         <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center mx-auto shadow-lg">
           <Trophy className="text-white w-10 h-10 animate-bounce" />
         </div>
-        <h2 className="text-2xl font-bold text-foreground">Quiz Completed!</h2>
-        <p className="text-sm text-muted-foreground font-medium">Here is how you performed in this practice test</p>
+        <div>
+          <span className="text-xs font-extrabold text-primary uppercase tracking-widest">{category} · {difficulty}</span>
+          <h2 className="text-3xl font-black text-foreground mt-1">Examination Completed!</h2>
+        </div>
       </div>
 
-      {/* Large Rating Badge */}
+      {/* Rating Badge */}
       <div className={cn(
-        "inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-white font-extrabold text-lg bg-gradient-to-r shadow-lg",
+        "inline-flex items-center gap-2 px-6 py-2 rounded-full text-white font-extrabold text-base bg-gradient-to-r shadow-lg",
         badgeColor
       )}>
         <Award className="w-5 h-5" />
@@ -602,25 +398,27 @@ function ResultSummary({
       </div>
 
       {/* Main Score Board */}
-      <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
-        <div className="bg-card border border-border p-5 rounded-2xl">
-          <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Correct Answers</p>
-          <p className="text-4xl font-extrabold text-emerald-500 mt-2">
-            {animatedScore} <span className="text-sm font-medium text-muted-foreground">/ {total}</span>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-xl mx-auto">
+        <div className="bg-muted/30 border border-border p-4 rounded-2xl">
+          <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider">Correct Answers</p>
+          <p className="text-3xl font-black text-emerald-500 mt-1">
+            {animatedScore} <span className="text-xs font-medium text-muted-foreground">/ {total}</span>
           </p>
         </div>
-        <div className="bg-card border border-border p-5 rounded-2xl">
-          <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Percentage</p>
-          <p className="text-4xl font-extrabold text-primary mt-2">
-            {animatedPercent}%
-          </p>
+        <div className="bg-muted/30 border border-border p-4 rounded-2xl">
+          <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider">Accuracy</p>
+          <p className="text-3xl font-black text-primary mt-1">{animatedPercent}%</p>
+        </div>
+        <div className="bg-muted/30 border border-border p-4 rounded-2xl col-span-2 md:col-span-1">
+          <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider">Time Taken</p>
+          <p className="text-3xl font-black text-foreground mt-1">{formatTimeHHMMSS(timeTaken)}</p>
         </div>
       </div>
 
       {/* Metrics Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-border">
         <div className="space-y-1">
-          <p className="text-[11px] text-muted-foreground font-bold uppercase">Wrong Answers</p>
+          <p className="text-[11px] text-muted-foreground font-bold uppercase">Wrong</p>
           <p className="text-xl font-bold text-destructive">{wrong}</p>
         </div>
         <div className="space-y-1">
@@ -635,19 +433,19 @@ function ResultSummary({
           </p>
         </div>
         <div className="space-y-1">
-          <p className="text-[11px] text-muted-foreground font-bold uppercase">Success Rate</p>
-          <p className="text-xl font-bold text-teal-500">{percentage}%</p>
+          <p className="text-[11px] text-muted-foreground font-bold uppercase">Completion</p>
+          <p className="text-xl font-bold text-teal-500">{Math.round(((correct + wrong) / total) * 100)}%</p>
         </div>
       </div>
 
       {/* Buttons */}
       <div className="flex flex-wrap gap-4 justify-center pt-4">
-        <Button onClick={onRetry} variant="primary" className="flex items-center gap-2">
+        <Button onClick={onRetake} variant="primary" className="flex items-center gap-2 px-6 py-2.5 font-bold shadow-md shadow-primary/20">
           <RotateCcw className="w-4 h-4" />
-          Retry Quiz
+          Retake Test (New Questions)
         </Button>
-        <Button onClick={onChangeMode} variant="secondary">
-          Change Mode
+        <Button onClick={onChangeCategory} variant="secondary" className="px-6 py-2.5 font-bold">
+          Choose Another Category
         </Button>
       </div>
     </Card>
@@ -662,85 +460,89 @@ function AnswerReview({
   selectedAnswers: Record<number, number>;
 }) {
   return (
-    <div className="space-y-6 max-w-2xl mx-auto pt-8">
-      <h3 className="text-lg font-bold text-foreground">Review Questions & Solutions</h3>
-      <div className="space-y-4">
+    <div className="space-y-6 max-w-3xl mx-auto pt-8">
+      <div className="flex items-center justify-between border-b border-border pb-3">
+        <h3 className="text-xl font-black text-foreground">Detailed Question Review</h3>
+        <span className="text-xs font-semibold text-muted-foreground">Solutions & AI Explanations</span>
+      </div>
+
+      <div className="space-y-5">
         {questions.map((q, idx) => {
           const selected = selectedAnswers[idx];
           const isCorrect = selected === q.correctAnswer;
           const isSkipped = selected === undefined;
 
-          let statusIcon = <CheckCircle className="w-5 h-5 text-emerald-500 mt-0.5" />;
-          let statusText = "Correct Answer";
-          let cardBorder = "border-emerald-500/20 bg-emerald-50/5";
+          let statusIcon = <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0" />;
+          let statusText = "Correct";
+          let cardBorder = "border-emerald-500/20 bg-emerald-500/5";
 
           if (isSkipped) {
-            statusIcon = <HelpCircle className="w-5 h-5 text-muted-foreground mt-0.5" />;
-            statusText = "Skipped Question";
+            statusIcon = <HelpCircle className="w-5 h-5 text-muted-foreground flex-shrink-0" />;
+            statusText = "Skipped";
             cardBorder = "border-border bg-muted/10";
           } else if (!isCorrect) {
-            statusIcon = <XCircle className="w-5 h-5 text-destructive mt-0.5" />;
-            statusText = "Incorrect Answer";
+            statusIcon = <XCircle className="w-5 h-5 text-destructive flex-shrink-0" />;
+            statusText = "Incorrect";
             cardBorder = "border-destructive/20 bg-destructive/5";
           }
 
           return (
-            <Card key={idx} className={cn("p-6 border text-left", cardBorder)}>
-              <div className="flex gap-3">
-                {statusIcon}
-                <div className="flex-1 space-y-4">
-                  <div>
-                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-1">
-                      Question {idx + 1} · {statusText}
-                    </span>
-                    <h4 className="font-bold text-foreground text-base">{q.question}</h4>
-                  </div>
-
-                  {/* Options List */}
-                  <div className="space-y-2">
-                    {q.options.map((opt, oIdx) => {
-                      const isOptionSelected = selected === oIdx;
-                      const isOptionCorrect = oIdx === q.correctAnswer;
-
-                      let optBorder = "border-border";
-                      let optBg = "bg-card";
-                      let optIcon = null;
-
-                      if (isOptionCorrect) {
-                        optBorder = "border-emerald-500";
-                        optBg = "bg-emerald-500/5";
-                        optIcon = <Check className="w-4 h-4 text-emerald-500 stroke-[3px]" />;
-                      } else if (isOptionSelected) {
-                        optBorder = "border-destructive";
-                        optBg = "bg-destructive/5";
-                        optIcon = <XCircle className="w-4 h-4 text-destructive" />;
-                      }
-
-                      return (
-                        <div
-                          key={oIdx}
-                          className={cn(
-                            "flex items-center gap-3 p-3 rounded-lg border text-sm",
-                            optBorder,
-                            optBg
-                          )}
-                        >
-                          <div className="w-5 h-5 rounded-full flex items-center justify-center border border-muted-foreground/30 flex-shrink-0 bg-background text-[11px] font-bold">
-                            {String.fromCharCode(65 + oIdx)}
-                          </div>
-                          <span className="flex-1 font-medium">{opt}</span>
-                          {optIcon}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Explanation Alert */}
-                  <div className="mt-3 p-4 bg-muted/30 border border-border rounded-xl text-xs leading-relaxed text-muted-foreground">
-                    <p className="font-bold text-foreground mb-1">Explanation:</p>
-                    {q.explanation || `Option ${String.fromCharCode(65 + q.correctAnswer)} is the correct answer because it satisfies the question requirements.`}
-                  </div>
+            <Card key={idx} className={cn("p-6 border text-left space-y-4 shadow-sm", cardBorder)}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  {statusIcon}
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                    Question {idx + 1} · {statusText}
+                  </span>
                 </div>
+              </div>
+
+              <h4 className="font-bold text-foreground text-base leading-relaxed">{q.question}</h4>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                {q.options.map((opt, oIdx) => {
+                  const isOptionSelected = selected === oIdx;
+                  const isOptionCorrect = oIdx === q.correctAnswer;
+
+                  let optBorder = "border-border";
+                  let optBg = "bg-card";
+                  let optIcon = null;
+
+                  if (isOptionCorrect) {
+                    optBorder = "border-emerald-500";
+                    optBg = "bg-emerald-500/10 text-emerald-950 dark:text-emerald-200";
+                    optIcon = <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />;
+                  } else if (isOptionSelected) {
+                    optBorder = "border-destructive";
+                    optBg = "bg-destructive/10 text-destructive-950 dark:text-destructive-200";
+                    optIcon = <XCircle className="w-4 h-4 text-destructive flex-shrink-0" />;
+                  }
+
+                  return (
+                    <div
+                      key={oIdx}
+                      className={cn(
+                        "flex items-center gap-3 p-3 rounded-xl border text-sm font-medium transition-colors",
+                        optBorder,
+                        optBg
+                      )}
+                    >
+                      <div className="w-5 h-5 rounded-md flex items-center justify-center border border-muted-foreground/30 flex-shrink-0 bg-background text-[11px] font-bold">
+                        {String.fromCharCode(65 + oIdx)}
+                      </div>
+                      <span className="flex-1 text-xs md:text-sm">{opt}</span>
+                      {optIcon}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="p-4 bg-muted/40 border border-border rounded-xl text-xs leading-relaxed text-muted-foreground space-y-1">
+                <p className="font-bold text-foreground flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  AI Tutor Explanation:
+                </p>
+                <p>{q.explanation || `Option ${String.fromCharCode(65 + q.correctAnswer)} is the correct choice.`}</p>
               </div>
             </Card>
           );
@@ -751,664 +553,572 @@ function AnswerReview({
 }
 
 /* ═══════════════════════════════════
-   MAIN COMPONENT
+   MAIN PRACTICE ARENA COMPONENT
    ═══════════════════════════════════ */
 export default function Quiz() {
-  const [quizMode, setQuizMode] = useState<QuizMode | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<CategoryKey | null>(null);
+  const [showSetupModal, setShowSetupModal] = useState(false);
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>("Medium");
+  const [questionCount, setQuestionCount] = useState<QuestionCount>(10);
+
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const [seenQuestionTexts, setSeenQuestionTexts] = useState<string[]>([]);
-  
-  // Sync seen questions list on category change
-  useEffect(() => {
-    if (!quizMode) {
-      setSeenQuestionTexts([]);
-      return;
-    }
+
+  // Test Execution State
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
+  const [visitedQuestions, setVisitedQuestions] = useState<number[]>([0]);
+  const [markedForReview, setMarkedForReview] = useState<number[]>([]);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [showResult, setShowResult] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [startTime, setStartTime] = useState<number>(0);
+  const [timeTaken, setTimeTaken] = useState<number>(0);
+
+  const localStorageKey = useMemo(() => {
+    return selectedCategory ? `smart_ai_lms_exam_${selectedCategory}` : "";
+  }, [selectedCategory]);
+
+  // Handle Category Card Click
+  const handleCategoryClick = (category: CategoryKey) => {
+    setSelectedCategory(category);
+    setShowSetupModal(true);
+  };
+
+  // Generate Test Function
+  const handleStartTest = async (diff: DifficultyLevel, count: QuestionCount) => {
+    setDifficulty(diff);
+    setQuestionCount(count);
+    setShowSetupModal(false);
+    setLoadingQuestions(true);
+    setGenerationError(null);
+    setIsSubmitted(false);
+    setShowResult(false);
+    setSelectedAnswers({});
+    setVisitedQuestions([0]);
+    setMarkedForReview([]);
+    setCurrentQuestion(0);
+
     try {
-      const saved = localStorage.getItem(`smart_ai_lms_seen_questions_${quizMode}`);
-      setSeenQuestionTexts(saved ? JSON.parse(saved) : []);
-    } catch (e) {
-      setSeenQuestionTexts([]);
-    }
-  }, [quizMode]);
+      const response = await apiRequest<{
+        success: boolean;
+        questions: Question[];
+      }>("/mocktest/generate", {
+        method: "POST",
+        body: JSON.stringify({
+          category: selectedCategory,
+          difficulty: diff,
+          questionCount: count
+        })
+      });
 
-  const getQuizTopic = (mode: QuizMode): string => {
-    const topics: Record<QuizMode, string> = {
-      "nursery-lkg": "Colors, Numbers, and Basic Shapes",
-      "class-1-5": "Arithmetic, Basic Science, and General Trivia",
-      "class-6-10": "Algebra, General Physics, and World History",
-      "class-11-12": "Calculus, Chemistry Reactions, and Mechanics",
-      "jee-neet": "Electrochemistry, Newton Laws, and Cell Biology",
-      "engineering": "Time Complexity, Database Management, and Operating Systems",
-      "gate": "Linear Algebra, Graph Theory, and Computer Networks",
-      "cat": "Quantitative Ability and Data Interpretation",
-      "defence": "Indian Armed Forces History and Aptitude",
-      "upsc": "Constitution Articles and Geography",
-      "ssc": "Indian History and Quantitative Aptitude",
-      "banking": "Monetary Policy and Logical Reasoning",
-      "railway": "General Science and Arithmetic Questions",
-      "general-knowledge": "Current Affairs and International Relations",
-      "english": "Synonyms, Antonyms, and Sentence Correction",
-      "mathematics": "Algebra, Trigonometry, and Statistics",
-      "science": "Chemical Symbols, Anatomy, and Physics Units",
-    };
-    return topics[mode] || "General Knowledge";
+      if (response && response.questions && response.questions.length > 0) {
+        setQuestions(response.questions);
+        const duration = calculateTestDuration(diff, response.questions.length);
+        setTimeLeft(duration);
+        setStartTime(Date.now());
+      } else {
+        throw new Error("Invalid response format received from test generation server.");
+      }
+    } catch (err: any) {
+      console.error("❌ Test Generation Error:", err);
+      setGenerationError(err.message || "Failed to generate test. Please try again.");
+    } finally {
+      setLoadingQuestions(false);
+    }
   };
 
-  // Fetch questions from Backend using Groq
+  // Timer Countdown Effect
   useEffect(() => {
-    if (!quizMode) {
-      setQuestions([]);
-      return;
-    }
+    if (!selectedCategory || questions.length === 0 || isSubmitted || showResult || timeLeft <= 0) return;
 
-    const fetchAIQuestions = async () => {
-      setLoadingQuestions(true);
-      setGenerationError(null);
-      try {
-        const savedSeenStr = localStorage.getItem(`smart_ai_lms_seen_questions_${quizMode}`);
-        const currentSeen: string[] = savedSeenStr ? JSON.parse(savedSeenStr) : [];
-
-        const response = await apiRequest<{ questions: any[] }>("/mocktest/generate", {
-          method: "POST",
-          body: JSON.stringify({
-            subject: getQuizTitle(),
-            topic: getQuizTopic(quizMode),
-            excludeQuestions: currentSeen
-          })
-        });
-
-        if (response && response.questions && response.questions.length > 0) {
-          const normalized = response.questions.map((q: any, index: number) => {
-            let correctAnswerIdx = 0;
-            if (q.correctAnswer !== undefined) {
-              correctAnswerIdx = typeof q.correctAnswer === "number"
-                ? q.correctAnswer
-                : parseInt(q.correctAnswer) || 0;
-            } else if (q.answer !== undefined) {
-              correctAnswerIdx = q.options.indexOf(q.answer);
-              if (correctAnswerIdx === -1) {
-                correctAnswerIdx = q.options.findIndex(
-                  (opt: string) => opt.trim().toLowerCase() === q.answer?.trim().toLowerCase()
-                );
-              }
-              if (correctAnswerIdx === -1) {
-                // Also check if they sent choice letter (A, B, C, D)
-                const charCode = q.answer.trim().toUpperCase().charCodeAt(0);
-                if (charCode >= 65 && charCode <= 68) {
-                  correctAnswerIdx = charCode - 65;
-                } else {
-                  correctAnswerIdx = 0;
-                }
-              }
-            }
-
-            return {
-              id: index + 1,
-              question: q.question,
-              options: q.options,
-              correctAnswer: correctAnswerIdx,
-              explanation: q.explanation || `Option ${String.fromCharCode(65 + correctAnswerIdx)} is correct.`
-            };
-          });
-
-          setQuestions(normalized);
-
-          // Append newly generated questions to seen list
-          const loadedQuestions = normalized.map(q => q.question);
-          const updatedSeen = [...currentSeen, ...loadedQuestions];
-          if (updatedSeen.length > 40) {
-            updatedSeen.splice(0, updatedSeen.length - 40);
-          }
-          setSeenQuestionTexts(updatedSeen);
-          localStorage.setItem(`smart_ai_lms_seen_questions_${quizMode}`, JSON.stringify(updatedSeen));
-        } else {
-          throw new Error("Invalid response format from server");
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          // Auto submit on time expiry
+          handleSubmitTest();
+          return 0;
         }
-      } catch (err: any) {
-        console.error("AI Question generation failed:", err);
-        setQuestions([]);
-        setGenerationError("AI Engine Offline. Could not generate practice questions.");
-      } finally {
-        setLoadingQuestions(false);
-      }
-    };
+        return prev - 1;
+      });
+    }, 1000);
 
-    fetchAIQuestions();
-  }, [quizMode]);
+    return () => clearInterval(timer);
+  }, [selectedCategory, questions.length, isSubmitted, showResult, timeLeft > 0]);
 
-  const {
-    currentQuestion,
-    selectedAnswers,
-    visitedQuestions,
-    markedForReview,
-    isSubmitted,
-    isSubmitting,
-    timeLeft,
-    showResult,
-    handleSelectAnswer,
-    toggleMarkForReview,
-    jumpToQuestion,
-    handleNext,
-    handlePrev,
-    handleRestart,
-    setIsSubmitted,
-    setShowResult,
-    setIsSubmitting,
-    localStorageKey,
-  } = useQuizState(quizMode, questions.length);
-
-  const [isAlertOpen, setIsAlertOpen] = useState(false);
-  const [validationError, setValidationError] = useState<string | null>(null);
-
-  const question = questions[currentQuestion];
-  const total = questions.length;
-  const answeredCount = Object.keys(selectedAnswers).length;
-
-  const handleSubmitClick = () => {
-    setValidationError(null);
-    
-    // Check if unanswered questions exist
-    const unanswered: number[] = [];
-    for (let i = 0; i < total; i++) {
-      if (selectedAnswers[i] === undefined) {
-        unanswered.push(i);
-      }
-    }
-
-    if (unanswered.length > 0) {
-      setValidationError(`You still have ${unanswered.length} unanswered questions.`);
-      // Automatically jump to the first unanswered question
-      jumpToQuestion(unanswered[0]);
-      return;
-    }
-
-    // Open confirmation dialog
-    setIsAlertOpen(true);
+  // Answer Select Handler
+  const handleSelectOption = (optionIndex: number) => {
+    if (isSubmitted) return;
+    setSelectedAnswers(prev => ({ ...prev, [currentQuestion]: optionIndex }));
   };
 
-  const handleConfirmSubmit = async () => {
-    setIsAlertOpen(false);
-    setIsSubmitting(true);
+  // Toggle Mark for Review
+  const toggleMarkForReview = () => {
+    setMarkedForReview(prev =>
+      prev.includes(currentQuestion)
+        ? prev.filter(i => i !== currentQuestion)
+        : [...prev, currentQuestion]
+    );
+  };
+
+  // Clear Option Answer
+  const handleClearAnswer = () => {
+    setSelectedAnswers(prev => {
+      const next = { ...prev };
+      delete next[currentQuestion];
+      return next;
+    });
+  };
+
+  // Navigation Handlers
+  const handleJumpToQuestion = (idx: number) => {
+    setCurrentQuestion(idx);
+    setVisitedQuestions(prev => (prev.includes(idx) ? prev : [...prev, idx]));
+  };
+
+  const handleNext = () => {
+    if (currentQuestion < questions.length - 1) {
+      handleJumpToQuestion(currentQuestion + 1);
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentQuestion > 0) {
+      handleJumpToQuestion(currentQuestion - 1);
+    }
+  };
+
+  // Keyboard Shortcuts (Arrow Left/Right, M for Mark)
+  useEffect(() => {
+    if (!questions.length || isSubmitted || showResult) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") handleNext();
+      if (e.key === "ArrowLeft") handlePrev();
+      if (e.key === "m" || e.key === "M") toggleMarkForReview();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [questions.length, isSubmitted, showResult, currentQuestion]);
+
+  // Submit Test Function
+  const handleSubmitTest = async () => {
+    if (isSubmitted) return;
+
+    const elapsed = Math.round((Date.now() - startTime) / 1000);
+    setTimeTaken(elapsed > 0 ? elapsed : 1);
+
+    setIsSubmitted(true);
+    setShowResult(true);
+
+    // Calculate metrics
+    const correctCount = questions.reduce(
+      (acc, q, idx) => acc + (selectedAnswers[idx] === q.correctAnswer ? 1 : 0),
+      0
+    );
 
     try {
       await apiRequest("/mocktest/submit", {
         method: "POST",
         body: JSON.stringify({
-          subject: getQuizTitle(),
-          topic: getQuizTopic(quizMode!),
-          totalQuestions: total,
-          correctAnswers: correct,
-          weakAreas: wrong > 0 ? ["Practice Review"] : []
+          category: selectedCategory,
+          totalQuestions: questions.length,
+          correctAnswers: correctCount,
+          timeTaken: elapsed
         })
       });
     } catch (err) {
-      console.error("Failed to submit quiz to backend database:", err);
-    } finally {
-      setIsSubmitted(true);
-      setShowResult(true);
-      setIsSubmitting(false);
-      localStorage.removeItem(localStorageKey);
+      console.error("Failed to post test evaluation to backend database:", err);
     }
   };
 
-  const handleRestartQuiz = () => {
-    handleRestart();
-    setValidationError(null);
-  };
-
-  const handleModeSelect = (mode: QuizMode) => {
-    setQuizMode(mode);
-    setValidationError(null);
-  };
-
-  const getQuizTitle = () => {
-    const titles: Record<QuizMode, string> = {
-      "nursery-lkg": "Nursery - LKG Quiz",
-      "class-1-5": "Class 1-5 Quiz",
-      "class-6-10": "Class 6-10 Quiz",
-      "class-11-12": "Class 11-12 Quiz",
-      "jee-neet": "JEE/NEET Quiz",
-      "engineering": "Engineering Quiz",
-      "gate": "GATE Quiz",
-      "cat": "CAT Quiz",
-      "defence": "Defence Preparation Quiz",
-      "upsc": "UPSC Quiz",
-      "ssc": "SSC Quiz",
-      "banking": "Banking Quiz",
-      "railway": "Railway Quiz",
-      "general-knowledge": "General Knowledge Quiz",
-      "english": "English Quiz",
-      "mathematics": "Mathematics Quiz",
-      "science": "Science Quiz",
-    };
-    return quizMode ? titles[quizMode] : "";
-  };
-
-  // Compute metrics
-  const correct = questions.reduce((acc, q, idx) => {
-    return acc + (selectedAnswers[idx] === q.correctAnswer ? 1 : 0);
-  }, 0);
-  const wrong = questions.reduce((acc, q, idx) => {
-    return acc + (selectedAnswers[idx] !== undefined && selectedAnswers[idx] !== q.correctAnswer ? 1 : 0);
-  }, 0);
+  // Compute Current Metrics
+  const total = questions.length;
+  const correct = questions.reduce((acc, q, idx) => acc + (selectedAnswers[idx] === q.correctAnswer ? 1 : 0), 0);
+  const wrong = questions.reduce((acc, q, idx) => acc + (selectedAnswers[idx] !== undefined && selectedAnswers[idx] !== q.correctAnswer ? 1 : 0), 0);
   const skipped = total - (correct + wrong);
   const percentage = total > 0 ? Math.round((correct / total) * 100) : 0;
-  const scoreXp = correct * 50;
+  const xpEarned = correct * 5;
 
-  if (!quizMode) {
+  const currentQ = questions[currentQuestion];
+
+  // 1. CATEGORY SELECTION VIEW
+  if (!selectedCategory || (!loadingQuestions && questions.length === 0 && !generationError)) {
     return (
-      <div className="p-6 max-w-7xl mx-auto space-y-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-extrabold text-foreground">Practice Arena</h1>
-          <p className="text-muted-foreground mt-1 font-medium">Choose your quiz category to get started</p>
+      <div className="p-6 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-300">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-6">
+          <div>
+            <h1 className="text-3xl font-black text-foreground tracking-tight flex items-center gap-3">
+              <Brain className="w-8 h-8 text-primary" />
+              Practice Arena
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm font-medium">
+              Select an examination category to generate a fresh, AI-powered question paper powered by Groq.
+            </p>
+          </div>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 border border-primary/20 text-primary font-bold text-xs">
+            <Sparkles className="w-4 h-4" />
+            AI Question Generator V2
+          </div>
         </div>
 
         {/* School Level */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-foreground">
-            <School size={24} className="text-primary" />
+        <div className="space-y-4">
+          <h2 className="text-lg font-bold flex items-center gap-2 text-foreground">
+            <School className="w-5 h-5 text-primary" />
             School Level
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card onClick={() => handleModeSelect("nursery-lkg")} className="p-6 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-200 bg-gradient-to-br from-pink-500/5 to-pink-400/5 border border-transparent hover:border-pink-500/50">
-              <div className="flex flex-col items-center text-center space-y-3">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-500 to-pink-400 flex items-center justify-center">
-                  <Baby className="text-white" size={32} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { key: "Nursery-LKG", desc: "Colors, Shapes & Basic Numbers", icon: Baby, color: "from-pink-500 to-rose-500" },
+              { key: "Class 1-5", desc: "Primary Elementary Concepts", icon: BookOpen, color: "from-blue-500 to-cyan-500" },
+              { key: "Class 6-10", desc: "Middle & High School Subjects", icon: School, color: "from-indigo-500 to-blue-600" },
+              { key: "Class 11-12", desc: "Senior Secondary Streams", icon: Users, color: "from-violet-500 to-purple-600" }
+            ].map(item => (
+              <Card
+                key={item.key}
+                onClick={() => handleCategoryClick(item.key as CategoryKey)}
+                className="p-5 cursor-pointer hover:shadow-xl hover:scale-[1.02] transition-all duration-200 border-border hover:border-primary/50 bg-card group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className={cn("w-12 h-12 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-md", item.color)}>
+                    <item.icon className="text-white w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-foreground group-hover:text-primary transition-colors text-base">{item.key}</h3>
+                    <p className="text-xs text-muted-foreground font-medium">{item.desc}</p>
+                  </div>
                 </div>
-                <h3 className="font-bold text-foreground">Nursery - LKG</h3>
-                <p className="text-xs text-muted-foreground font-medium">Colors, Numbers, Basic Learning</p>
-              </div>
-            </Card>
-
-            <Card onClick={() => handleModeSelect("class-1-5")} className="p-6 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-200 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 border border-transparent hover:border-blue-500/50">
-              <div className="flex flex-col items-center text-center space-y-3">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                  <BookOpen className="text-white" size={32} />
-                </div>
-                <h3 className="font-bold text-foreground">Class 1-5</h3>
-                <p className="text-xs text-muted-foreground font-medium">Primary School Level</p>
-              </div>
-            </Card>
-
-            <Card onClick={() => handleModeSelect("class-6-10")} className="p-6 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-200 bg-gradient-to-br from-indigo-500/5 to-blue-500/5 border border-transparent hover:border-indigo-500/50">
-              <div className="flex flex-col items-center text-center space-y-3">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center">
-                  <School className="text-white" size={32} />
-                </div>
-                <h3 className="font-bold text-foreground">Class 6-10</h3>
-                <p className="text-xs text-muted-foreground font-medium">Middle & High School</p>
-              </div>
-            </Card>
-
-            <Card onClick={() => handleModeSelect("class-11-12")} className="p-6 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-200 bg-gradient-to-br from-violet-500/5 to-purple-500/5 border border-transparent hover:border-violet-500/50">
-              <div className="flex flex-col items-center text-center space-y-3">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center">
-                  <Users className="text-white" size={32} />
-                </div>
-                <h3 className="font-bold text-foreground">Class 11-12</h3>
-                <p className="text-xs text-muted-foreground font-medium">Senior Secondary</p>
-              </div>
-            </Card>
+              </Card>
+            ))}
           </div>
         </div>
 
         {/* Competitive Exams */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-foreground">
-            <GraduationCap size={24} className="text-primary" />
-            Competitive Exams
+        <div className="space-y-4">
+          <h2 className="text-lg font-bold flex items-center gap-2 text-foreground">
+            <GraduationCap className="w-5 h-5 text-primary" />
+            Competitive Entrance Exams
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card onClick={() => handleModeSelect("jee-neet")} className="p-6 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-200 bg-gradient-to-br from-primary/5 to-secondary/5 border border-transparent hover:border-primary/50">
-              <div className="flex flex-col items-center text-center space-y-3">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                  <GraduationCap className="text-white" size={32} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            {[
+              { key: "JEE", desc: "Engineering Entrance (Physics, Chem, Math)", icon: GraduationCap, color: "from-primary to-secondary" },
+              { key: "NEET", desc: "Medical Entrance (Physics, Chem, Biology)", icon: Atom, color: "from-emerald-500 to-teal-600" },
+              { key: "Engineering", desc: "Computer Science, DSA, OS, DBMS", icon: Rocket, color: "from-accent to-purple-600" },
+              { key: "GATE", desc: "Advanced Engineering Aptitude", icon: Award, color: "from-purple-600 to-pink-600" },
+              { key: "CAT", desc: "Quant, VARC & Data Interpretation", icon: Briefcase, color: "from-amber-500 to-orange-600" }
+            ].map(item => (
+              <Card
+                key={item.key}
+                onClick={() => handleCategoryClick(item.key as CategoryKey)}
+                className="p-5 cursor-pointer hover:shadow-xl hover:scale-[1.02] transition-all duration-200 border-border hover:border-primary/50 bg-card group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className={cn("w-12 h-12 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-md", item.color)}>
+                    <item.icon className="text-white w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-foreground group-hover:text-primary transition-colors text-base">{item.key}</h3>
+                    <p className="text-xs text-muted-foreground font-medium">{item.desc}</p>
+                  </div>
                 </div>
-                <h3 className="font-bold text-foreground">JEE / NEET</h3>
-                <p className="text-xs text-muted-foreground font-medium">Engineering & Medical</p>
-              </div>
-            </Card>
-
-            <Card onClick={() => handleModeSelect("engineering")} className="p-6 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-200 bg-gradient-to-br from-accent/5 to-purple-500/5 border border-transparent hover:border-accent/50">
-              <div className="flex flex-col items-center text-center space-y-3">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-accent to-purple-500 flex items-center justify-center">
-                  <Rocket className="text-white" size={32} />
-                </div>
-                <h3 className="font-bold text-foreground">Engineering</h3>
-                <p className="text-xs text-muted-foreground font-medium">CS, DSA, DBMS</p>
-              </div>
-            </Card>
-
-            <Card onClick={() => handleModeSelect("gate")} className="p-6 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-200 bg-gradient-to-br from-purple-600/5 to-pink-500/5 border border-transparent hover:border-purple-600/50">
-              <div className="flex flex-col items-center text-center space-y-3">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center">
-                  <Award className="text-white" size={32} />
-                </div>
-                <h3 className="font-bold text-foreground">GATE</h3>
-                <p className="text-xs text-muted-foreground font-medium">Engineering Entrance</p>
-              </div>
-            </Card>
-
-            <Card onClick={() => handleModeSelect("cat")} className="p-6 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-200 bg-gradient-to-br from-amber-500/5 to-orange-500/5 border border-transparent hover:border-amber-500/50">
-              <div className="flex flex-col items-center text-center space-y-3">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
-                  <Briefcase className="text-white" size={32} />
-                </div>
-                <h3 className="font-bold text-foreground">CAT</h3>
-                <p className="text-xs text-muted-foreground font-medium">MBA Entrance</p>
-              </div>
-            </Card>
+              </Card>
+            ))}
           </div>
         </div>
 
         {/* Government Jobs */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-foreground">
-            <Landmark size={24} className="text-primary" />
-            Government Jobs
+        <div className="space-y-4">
+          <h2 className="text-lg font-bold flex items-center gap-2 text-foreground">
+            <Landmark className="w-5 h-5 text-primary" />
+            Government Examinations
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <Card onClick={() => handleModeSelect("defence")} className="p-6 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-200 bg-gradient-to-br from-green-600/5 to-green-500/5 border border-transparent hover:border-green-600/50">
-              <div className="flex flex-col items-center text-center space-y-3">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-600 to-green-500 flex items-center justify-center">
-                  <Shield className="text-white" size={32} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            {[
+              { key: "UPSC", desc: "Civil Services Prelims & Mains", icon: Landmark, color: "from-red-600 to-orange-600" },
+              { key: "SSC", desc: "Staff Selection Commission Exams", icon: Globe, color: "from-teal-500 to-emerald-600" },
+              { key: "Banking", desc: "IBPS, SBI PO & Clerk Preparation", icon: Banknote, color: "from-sky-500 to-blue-600" },
+              { key: "Railway", desc: "RRB NTPC, Group D & Assistant Loco", icon: Train, color: "from-amber-600 to-yellow-600" },
+              { key: "Defence", desc: "NDA, CDS, AFCAT Armed Forces", icon: Shield, color: "from-green-600 to-emerald-700" }
+            ].map(item => (
+              <Card
+                key={item.key}
+                onClick={() => handleCategoryClick(item.key as CategoryKey)}
+                className="p-5 cursor-pointer hover:shadow-xl hover:scale-[1.02] transition-all duration-200 border-border hover:border-primary/50 bg-card group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className={cn("w-12 h-12 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-md", item.color)}>
+                    <item.icon className="text-white w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-foreground group-hover:text-primary transition-colors text-base">{item.key}</h3>
+                    <p className="text-xs text-muted-foreground font-medium">{item.desc}</p>
+                  </div>
                 </div>
-                <h3 className="font-bold text-foreground">Defence</h3>
-                <p className="text-xs text-muted-foreground font-medium">NDA, CDS, AFCAT</p>
-              </div>
-            </Card>
-
-            <Card onClick={() => handleModeSelect("upsc")} className="p-6 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-200 bg-gradient-to-br from-red-600/5 to-orange-600/5 border border-transparent hover:border-red-600/50">
-              <div className="flex flex-col items-center text-center space-y-3">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-600 to-orange-600 flex items-center justify-center">
-                  <Landmark className="text-white" size={32} />
-                </div>
-                <h3 className="font-bold text-foreground">UPSC</h3>
-                <p className="text-xs text-muted-foreground font-medium">Civil Services</p>
-              </div>
-            </Card>
-
-            <Card onClick={() => handleModeSelect("ssc")} className="p-6 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-200 bg-gradient-to-br from-teal-500/5 to-emerald-500/5 border border-transparent hover:border-teal-500/50">
-              <div className="flex flex-col items-center text-center space-y-3">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center">
-                  <Globe className="text-white" size={32} />
-                </div>
-                <h3 className="font-bold text-foreground">SSC</h3>
-                <p className="text-xs text-muted-foreground font-medium">Staff Selection</p>
-              </div>
-            </Card>
-
-            <Card onClick={() => handleModeSelect("banking")} className="p-6 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-200 bg-gradient-to-br from-sky-500/5 to-blue-600/5 border border-transparent hover:border-sky-500/50">
-              <div className="flex flex-col items-center text-center space-y-3">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center">
-                  <Banknote className="text-white" size={32} />
-                </div>
-                <h3 className="font-bold text-foreground">Banking</h3>
-                <p className="text-xs text-muted-foreground font-medium">IBPS, SBI, RBI</p>
-              </div>
-            </Card>
-
-            <Card onClick={() => handleModeSelect("railway")} className="p-6 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-200 bg-gradient-to-br from-slate-600/5 to-gray-600/5 border border-transparent hover:border-slate-600/50">
-              <div className="flex flex-col items-center text-center space-y-3">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-slate-600 to-gray-600 flex items-center justify-center">
-                  <Train className="text-white" size={32} />
-                </div>
-                <h3 className="font-bold text-foreground">Railway</h3>
-                <p className="text-xs text-muted-foreground font-medium">RRB, ALP, Group D</p>
-              </div>
-            </Card>
+              </Card>
+            ))}
           </div>
         </div>
 
-        {/* Subject Wise */}
-        <div>
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-foreground">
-            <Brain size={24} className="text-primary" />
-            Subject Wise
+        {/* Core Subjects */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-bold flex items-center gap-2 text-foreground">
+            <BookOpen className="w-5 h-5 text-primary" />
+            Core Academic Subjects
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card onClick={() => handleModeSelect("general-knowledge")} className="p-6 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-200 bg-gradient-to-br from-orange-500/5 to-red-500/5 border border-transparent hover:border-orange-500/50">
-              <div className="flex flex-col items-center text-center space-y-3">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
-                  <Brain className="text-white" size={32} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { key: "Mathematics", desc: "Arithmetic, Algebra & Geometry", icon: Calculator, color: "from-blue-600 to-indigo-600" },
+              { key: "Science", desc: "Physics, Chemistry & Biology", icon: Atom, color: "from-purple-600 to-violet-600" },
+              { key: "English", desc: "Grammar, Vocab & Comprehension", icon: Languages, color: "from-pink-600 to-rose-600" },
+              { key: "General Knowledge", desc: "History, Polity & Current Affairs", icon: Globe, color: "from-teal-600 to-emerald-600" }
+            ].map(item => (
+              <Card
+                key={item.key}
+                onClick={() => handleCategoryClick(item.key as CategoryKey)}
+                className="p-5 cursor-pointer hover:shadow-xl hover:scale-[1.02] transition-all duration-200 border-border hover:border-primary/50 bg-card group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className={cn("w-12 h-12 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-md", item.color)}>
+                    <item.icon className="text-white w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-foreground group-hover:text-primary transition-colors text-base">{item.key}</h3>
+                    <p className="text-xs text-muted-foreground font-medium">{item.desc}</p>
+                  </div>
                 </div>
-                <h3 className="font-bold text-foreground">General Knowledge</h3>
-                <p className="text-xs text-muted-foreground font-medium">History, Geography, GK</p>
-              </div>
-            </Card>
-
-            <Card onClick={() => handleModeSelect("english")} className="p-6 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-200 bg-gradient-to-br from-rose-500/5 to-pink-500/5 border border-transparent hover:border-rose-500/50">
-              <div className="flex flex-col items-center text-center space-y-3">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 flex items-center justify-center">
-                  <Languages className="text-white" size={32} />
-                </div>
-                <h3 className="font-bold text-foreground">English</h3>
-                <p className="text-xs text-muted-foreground font-medium">Grammar, Vocabulary</p>
-              </div>
-            </Card>
-
-            <Card onClick={() => handleModeSelect("mathematics")} className="p-6 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-200 bg-gradient-to-br from-cyan-500/5 to-blue-500/5 border border-transparent hover:border-cyan-500/50">
-              <div className="flex flex-col items-center text-center space-y-3">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center">
-                  <Calculator className="text-white" size={32} />
-                </div>
-                <h3 className="font-bold text-foreground">Mathematics</h3>
-                <p className="text-xs text-muted-foreground font-medium">Arithmetic, Algebra</p>
-              </div>
-            </Card>
-
-            <Card onClick={() => handleModeSelect("science")} className="p-6 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-200 bg-gradient-to-br from-lime-500/5 to-green-500/5 border border-transparent hover:border-lime-500/50">
-              <div className="flex flex-col items-center text-center space-y-3">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-lime-500 to-green-500 flex items-center justify-center">
-                  <FlaskConical className="text-white" size={32} />
-                </div>
-                <h3 className="font-bold text-foreground">Science</h3>
-                <p className="text-xs text-muted-foreground font-medium">Physics, Chemistry, Biology</p>
-              </div>
-            </Card>
+              </Card>
+            ))}
           </div>
         </div>
+
+        {/* Setup Modal */}
+        {showSetupModal && selectedCategory && (
+          <TestSetupModal
+            category={selectedCategory}
+            onClose={() => setShowSetupModal(false)}
+            onStart={handleStartTest}
+          />
+        )}
       </div>
     );
   }
 
+  // 2. LOADING STATE
+  if (loadingQuestions) {
+    return (
+      <div className="p-8 max-w-2xl mx-auto text-center space-y-6 animate-in fade-in duration-300 my-16">
+        <Card className="p-10 border-border bg-card shadow-2xl space-y-6 relative overflow-hidden">
+          <div className="w-20 h-20 rounded-3xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto text-primary animate-pulse">
+            <Sparkles className="w-10 h-10 animate-spin" style={{ animationDuration: "4s" }} />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black text-foreground">Generating Examination Paper...</h2>
+            <p className="text-sm text-muted-foreground font-medium">
+              Generating <span className="text-primary font-bold">{questionCount} fresh MCQs</span> for{" "}
+              <span className="text-foreground font-bold">{selectedCategory}</span> ({difficulty} Difficulty).
+            </p>
+          </div>
+          <div className="w-full max-w-md mx-auto space-y-2">
+            <Progress value={65} className="h-2" />
+            <span className="text-xs font-semibold text-muted-foreground">Querying Groq AI Model & Shuffling Answers...</span>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // 3. GENERATION ERROR STATE
+  if (generationError) {
+    return (
+      <div className="p-8 max-w-lg mx-auto text-center my-16 animate-in fade-in duration-300">
+        <Card className="p-8 border-destructive/30 bg-destructive/5 space-y-6 shadow-xl">
+          <AlertCircle className="w-12 h-12 text-destructive mx-auto" />
+          <div className="space-y-2">
+            <h3 className="text-xl font-bold text-foreground">Generation Failed</h3>
+            <p className="text-sm text-muted-foreground">{generationError}</p>
+          </div>
+          <div className="flex gap-3 justify-center">
+            <Button variant="outline" onClick={() => setSelectedCategory(null)}>
+              Back to Arena
+            </Button>
+            <Button variant="primary" onClick={() => handleStartTest(difficulty, questionCount)}>
+              Retry Generation
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // 4. RESULTS & REVIEW VIEW
   if (showResult) {
     return (
-      <div className="p-6 max-w-4xl mx-auto space-y-8 pb-12">
+      <div className="p-6 max-w-5xl mx-auto space-y-8 animate-in fade-in duration-300">
         <ResultSummary
           total={total}
           correct={correct}
           wrong={wrong}
           skipped={skipped}
           percentage={percentage}
-          score={scoreXp}
-          onRetry={handleRestartQuiz}
-          onChangeMode={() => setQuizMode(null)}
+          xpEarned={xpEarned}
+          timeTaken={timeTaken}
+          category={selectedCategory}
+          difficulty={difficulty}
+          onRetake={() => handleStartTest(difficulty, questionCount)}
+          onChangeCategory={() => setSelectedCategory(null)}
         />
-        <AnswerReview
-          questions={questions}
-          selectedAnswers={selectedAnswers}
-        />
+        <AnswerReview questions={questions} selectedAnswers={selectedAnswers} />
       </div>
     );
   }
 
-  if (loadingQuestions) {
-    return (
-      <div className="p-6 max-w-4xl mx-auto space-y-8 flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="relative w-20 h-20 flex items-center justify-center">
-          <div className="absolute inset-0 w-full h-full rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-          <Brain className="text-primary w-8 h-8 animate-pulse" />
-        </div>
-        <div className="text-center space-y-2">
-          <h2 className="text-xl font-extrabold text-foreground">Generating AI Practice Set</h2>
-          <p className="text-sm text-muted-foreground font-medium max-w-sm">
-            Groq AI is assembling custom adaptive questions matching your syllabus for {getQuizTitle()}...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (questions.length === 0) {
-    return (
-      <div className="p-6 max-w-4xl mx-auto space-y-8 flex flex-col items-center justify-center min-h-[60vh]">
-        <AlertTriangle className="text-destructive w-12 h-12" />
-        <h2 className="text-xl font-extrabold text-foreground">Failed to Load Questions</h2>
-        <p className="text-sm text-muted-foreground font-medium">Please check your network and try again.</p>
-        <Button onClick={() => setQuizMode(null)} variant="primary">
-          Back to Selection
-        </Button>
-      </div>
-    );
-  }
+  // 5. LIVE EXAM TEST VIEW
+  const isTimeWarning = timeLeft < 300;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6 pb-24 lg:pb-6 relative">
-      {/* Generation error warning banner */}
-      {generationError && (
-        <div className="flex items-center gap-2.5 p-3 rounded-xl border border-amber-500/20 bg-amber-500/5 text-amber-600 text-xs font-semibold">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-          <span>{generationError}</span>
-        </div>
-      )}
-
-      {/* Quiz Top Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-300">
+      {/* Top Header Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-card border border-border shadow-sm">
         <div>
-          <h1 className="text-2xl font-extrabold text-foreground">{getQuizTitle()}</h1>
-          <p className="text-sm text-muted-foreground font-medium">Practice Arena Test Session</p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black uppercase text-primary tracking-wider">{selectedCategory}</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-muted font-bold text-muted-foreground">{difficulty}</span>
+          </div>
+          <h2 className="text-lg font-bold text-foreground mt-0.5">Online Examination Session</h2>
         </div>
 
-        {/* Clock/Timer Component */}
+        {/* Live Timer */}
         <div className={cn(
-          "flex items-center gap-2 px-4 py-2 rounded-2xl border font-bold text-sm transition-colors duration-300",
-          timeLeft < 60
-            ? "border-destructive/30 bg-destructive/10 text-destructive animate-pulse"
-            : "border-border bg-card text-foreground"
+          "flex items-center gap-2 px-4 py-2 rounded-xl font-mono font-bold text-base transition-colors",
+          isTimeWarning
+            ? "bg-destructive/10 text-destructive border border-destructive/30 animate-pulse"
+            : "bg-muted text-foreground border border-border"
         )}>
-          <Clock className="w-4 h-4" />
-          <span>Remaining: {formatTime(timeLeft)}</span>
+          <Clock className="w-5 h-5" />
+          <span>{formatTimeHHMMSS(timeLeft)}</span>
         </div>
       </div>
 
-      {/* Validation Error Banner */}
-      {validationError && (
-        <div className="flex items-center gap-2.5 p-4 rounded-xl border border-destructive/20 bg-destructive/5 text-destructive text-sm font-semibold animate-in fade-in-50 duration-200">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-          <span>{validationError}</span>
+      {/* Main Examination Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Question Panel */}
+        <div className="lg:col-span-3 space-y-6">
+          <Card className="p-6 md:p-8 space-y-6 border-border bg-card shadow-sm">
+            {/* Header info */}
+            <div className="flex items-center justify-between border-b border-border pb-4">
+              <span className="text-xs font-black text-primary uppercase tracking-widest">
+                Question {currentQuestion + 1} of {total}
+              </span>
+              <button
+                type="button"
+                onClick={toggleMarkForReview}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors",
+                  markedForReview.includes(currentQuestion)
+                    ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+                    : "border-border text-muted-foreground hover:bg-muted"
+                )}
+              >
+                <Award className="w-4 h-4" />
+                {markedForReview.includes(currentQuestion) ? "Marked for Review" : "Mark for Review"}
+              </button>
+            </div>
+
+            {/* Question Text */}
+            <h3 className="text-base md:text-lg font-bold text-foreground leading-relaxed">
+              {currentQ.question}
+            </h3>
+
+            {/* Options */}
+            <div className="space-y-3">
+              {currentQ.options.map((optionText, optIdx) => (
+                <div key={optIdx} onClick={() => handleSelectOption(optIdx)}>
+                  <OptionItem
+                    label={String.fromCharCode(65 + optIdx)}
+                    text={optionText}
+                    selected={selectedAnswers[currentQuestion] === optIdx}
+                    disabled={isSubmitted}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Bottom Question Action Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClearAnswer}
+                disabled={selectedAnswers[currentQuestion] === undefined}
+                className="text-xs font-bold"
+              >
+                Clear Answer
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handlePrev}
+                  disabled={currentQuestion === 0}
+                  className="flex items-center gap-1.5 font-bold text-xs"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Previous
+                </Button>
+
+                {currentQuestion === total - 1 ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={handleSubmitTest}
+                    className="flex items-center gap-1.5 font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    Submit Examination
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={handleNext}
+                    className="flex items-center gap-1.5 font-bold text-xs"
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          </Card>
         </div>
-      )}
 
-      {/* Sub-layout: Sidebar Navigator & Card */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* Left Side: Question Card and Bottom buttons */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Animated Question Card */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentQuestion}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.2, ease: "easeInOut" }}
-            >
-              <QuestionCard
-                question={question}
-                selectedOption={selectedAnswers[currentQuestion]}
-                onSelect={(optIdx) => handleSelectAnswer(currentQuestion, optIdx)}
-                isMarked={markedForReview.includes(currentQuestion)}
-                onToggleMark={() => toggleMarkForReview(currentQuestion)}
-                disabled={isSubmitting}
-                questionNumber={currentQuestion + 1}
-                totalQuestions={total}
-                hasError={validationError !== null && selectedAnswers[currentQuestion] === undefined}
-              />
-            </motion.div>
-          </AnimatePresence>
-
-          {/* Desktop Navigation */}
-          <div className="hidden lg:block pt-2">
-            <QuizNavigation
-              currentQuestion={currentQuestion}
-              totalQuestions={total}
-              onPrev={handlePrev}
-              onNext={handleNext}
-              onSubmit={handleSubmitClick}
-              disabled={isSubmitting}
-            />
-          </div>
-        </div>
-
-        {/* Right Side: Progress Indicator and Navigator Grid */}
+        {/* Sidebar / Question Palette */}
         <div className="space-y-6">
-          <QuizProgress total={total} answeredCount={answeredCount} />
           <QuestionPalette
             total={total}
             current={currentQuestion}
             selectedAnswers={selectedAnswers}
             visitedQuestions={visitedQuestions}
             markedForReview={markedForReview}
-            onSelect={jumpToQuestion}
+            onSelect={handleJumpToQuestion}
           />
+
           <Button
-            variant="ghost"
-            onClick={() => setQuizMode(null)}
-            disabled={isSubmitting}
-            className="w-full border border-border rounded-xl text-xs py-2 hover:bg-muted font-bold"
+            type="button"
+            variant="accent"
+            onClick={handleSubmitTest}
+            className="w-full py-3 font-bold rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
           >
-            Cancel Test Session
+            <CheckCircle className="w-5 h-5" />
+            Submit Test Now
           </Button>
         </div>
       </div>
-
-      {/* Sticky Bottom Bar on Mobile */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-background/90 backdrop-blur-md border-t border-border p-4 z-40">
-        <QuizNavigation
-          currentQuestion={currentQuestion}
-          totalQuestions={total}
-          onPrev={handlePrev}
-          onNext={handleNext}
-          onSubmit={handleSubmitClick}
-          disabled={isSubmitting}
-        />
-      </div>
-
-      {/* Submit Confirmation Dialog */}
-      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Submit Quiz?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have answered all {total} questions. Once submitted, your answers cannot be changed. Are you sure you want to finish the exam?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleConfirmSubmit();
-              }}
-              disabled={isSubmitting}
-              className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold"
-            >
-              {isSubmitting ? "Submitting..." : "Submit Test"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Loading Overlay when Submitting */}
-      {isSubmitting && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex flex-col items-center justify-center text-white backdrop-blur-sm">
-          <div className="w-12 h-12 rounded-full border-4 border-white/20 border-t-white animate-spin mb-4" />
-          <p className="font-bold text-sm">Grading exam submission...</p>
-        </div>
-      )}
     </div>
   );
 }

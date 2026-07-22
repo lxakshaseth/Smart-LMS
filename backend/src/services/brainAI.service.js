@@ -1,16 +1,5 @@
-const Groq = require("groq-sdk");
+const OpenAI = require("openai");
 require("dotenv").config();
-
-// =======================================================
-// 🔐 GROQ CLIENT
-// =======================================================
-
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
-
-const MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
-
 
 // =======================================================
 // 🛡 SAFE JSON EXTRACTOR (PRODUCTION GRADE)
@@ -42,14 +31,23 @@ function extractJSON(text) {
 
 
 // =======================================================
-// 🔄 SAFE GROQ CALL (AUTO RETRY)
+// 🔄 SAFE GROQ CALL (EXCLUSIVE GROQ)
 // =======================================================
 
 async function safeGroqCall(messages, temperature = 0.5) {
-
   try {
+    if (!process.env.GROQ_API_KEY) {
+      throw new Error("GROQ_API_KEY is missing in .env file.");
+    }
+
+    const groq = new OpenAI({
+      apiKey: process.env.GROQ_API_KEY,
+      baseURL: "https://api.groq.com/openai/v1"
+    });
+    const model = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+
     const completion = await groq.chat.completions.create({
-      model: MODEL,
+      model,
       messages,
       temperature,
     });

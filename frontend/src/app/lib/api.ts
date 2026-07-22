@@ -49,7 +49,12 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   const payload = isJson ? await response.json() : null;
 
   if (!response.ok) {
-    if (response.status === 401) clearAuthToken();
+    if (response.status === 401) {
+      clearAuthToken();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("lms:unauthorized"));
+      }
+    }
     throw new ApiError(payload?.message || `Request failed (${response.status})`, response.status);
   }
 

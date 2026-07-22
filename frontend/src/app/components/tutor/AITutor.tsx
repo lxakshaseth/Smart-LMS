@@ -4,10 +4,14 @@ import {
   ChevronLeft, Plus, Search, MoreHorizontal,
   X, Check, GripVertical, Sparkles, BookOpen, Lightbulb,
   Clock, MessageSquare, Copy, ThumbsUp, ThumbsDown,
-  RotateCcw, ChevronDown, AlertCircle,
+  RotateCcw, ChevronDown, AlertCircle, Target,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { apiRequest } from "../../lib/api";
+import { getGreeting } from "../../lib/greeting";
+import { useAuth } from "../../context/AuthContext";
+import { getCurrentTargetExam, setCurrentTargetExam, EXAM_OPTIONS } from "../../lib/targetExam";
+import { renderMarkdown } from "../../lib/renderMarkdown";
 
 /* ═══════════════════════════════════════
    TYPES
@@ -57,228 +61,6 @@ const fmtTime = (d: Date) => {
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
 };
 
-/* ═══════════════════════════════════════
-   MARKDOWN RENDERER  (no external dep)
-═══════════════════════════════════════ */
-function renderMarkdown(text: string): React.ReactNode[] {
-  const lines = text.split("\n");
-  const nodes: React.ReactNode[] = [];
-  let i = 0;
-
-  const inlineFormat = (raw: string, key: string | number): React.ReactNode => {
-    // Split on code spans, bold, italic, etc.
-    const parts = raw.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|__[^_]+__|_[^_]+_)/g);
-    return (
-      <span key={key}>
-        {parts.map((p, pi) => {
-          if (p.startsWith("**") && p.endsWith("**"))
-            return <strong key={pi} className="font-semibold text-foreground">{p.slice(2, -2)}</strong>;
-          if (p.startsWith("*") && p.endsWith("*"))
-            return <em key={pi} className="italic">{p.slice(1, -1)}</em>;
-          if (p.startsWith("__") && p.endsWith("__"))
-            return <strong key={pi} className="font-semibold">{p.slice(2, -2)}</strong>;
-          if (p.startsWith("_") && p.endsWith("_"))
-            return <em key={pi} className="italic">{p.slice(1, -1)}</em>;
-          if (p.startsWith("`") && p.endsWith("`"))
-            return <code key={pi} className="px-1.5 py-0.5 rounded-md bg-muted border border-border text-xs font-mono text-primary">{p.slice(1, -1)}</code>;
-          return p;
-        })}
-      </span>
-    );
-  };
-
-  while (i < lines.length) {
-    const line = lines[i];
-
-    // Fenced code block
-    if (line.startsWith("```")) {
-      const lang = line.slice(3).trim();
-      const codeLines: string[] = [];
-      i++;
-      while (i < lines.length && !lines[i].startsWith("```")) {
-        codeLines.push(lines[i]);
-        i++;
-      }
-      nodes.push(
-        <div key={i} className="my-3 rounded-xl overflow-hidden border border-border shadow-sm">
-          {lang && (
-            <div className="flex items-center justify-between px-4 py-2 bg-muted/80 border-b border-border">
-              <span className="text-xs font-mono text-muted-foreground font-medium">{lang}</span>
-              <button
-                onClick={() => navigator.clipboard.writeText(codeLines.join("\n"))}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Copy size={12} /> Copy
-              </button>
-            </div>
-          )}
-          <pre className="p-4 overflow-x-auto bg-[#0d1117] text-[#e6edf3] text-xs leading-relaxed font-mono">
-            <code>{codeLines.join("\n")}</code>
-          </pre>
-        </div>
-      );
-      i++;
-      continue;
-    }
-
-    // H1
-    if (line.startsWith("# ")) {
-      nodes.push(<h1 key={i} className="text-xl font-bold mt-4 mb-2 text-foreground">{inlineFormat(line.slice(2), i)}</h1>);
-      i++; continue;
-    }
-    // H2
-    if (line.startsWith("## ")) {
-      nodes.push(<h2 key={i} className="text-base font-bold mt-4 mb-1.5 text-foreground border-b border-border pb-1">{inlineFormat(line.slice(3), i)}</h2>);
-      i++; continue;
-    }
-    // H3
-    if (line.startsWith("### ")) {
-      nodes.push(<h3 key={i} className="text-sm font-semibold mt-3 mb-1 text-foreground">{inlineFormat(line.slice(4), i)}</h3>);
-      i++; continue;
-    }
-
-    // Horizontal rule
-    if (/^---+$/.test(line.trim())) {
-      nodes.push(<hr key={i} className="my-3 border-border" />);
-      i++; continue;
-    }
-
-    // Blockquote
-    if (line.startsWith("> ")) {
-      nodes.push(
-        <blockquote key={i} className="my-2 pl-4 border-l-4 border-primary/50 text-muted-foreground italic text-sm">
-          {inlineFormat(line.slice(2), i)}
-        </blockquote>
-      );
-      i++; continue;
-    }
-
-    // Unordered list — collect consecutive items
-    if (/^[-*•]\s/.test(line)) {
-      const items: string[] = [];
-      while (i < lines.length && /^[-*•]\s/.test(lines[i])) {
-        items.push(lines[i].replace(/^[-*•]\s/, ""));
-        i++;
-      }
-      nodes.push(
-        <ul key={i} className="my-2 space-y-1.5 pl-1">
-          {items.map((item, ii) => (
-            <li key={ii} className="flex items-start gap-2.5 text-sm leading-relaxed">
-              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
-              <span>{inlineFormat(item, ii)}</span>
-            </li>
-          ))}
-        </ul>
-      );
-      continue;
-    }
-
-    // Ordered list
-    if (/^\d+\.\s/.test(line)) {
-      const items: string[] = [];
-      let startN = 1;
-      const match = line.match(/^(\d+)\./);
-      if (match) startN = parseInt(match[1]);
-      while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
-        items.push(lines[i].replace(/^\d+\.\s/, ""));
-        i++;
-      }
-      nodes.push(
-        <ol key={i} className="my-2 space-y-1.5 pl-1" start={startN}>
-          {items.map((item, ii) => (
-            <li key={ii} className="flex items-start gap-2.5 text-sm leading-relaxed">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">
-                {startN + ii}
-              </span>
-              <span>{inlineFormat(item, ii)}</span>
-            </li>
-          ))}
-        </ol>
-      );
-      continue;
-    }
-
-    // Table
-    if (line.includes("|") && lines[i + 1]?.includes("---")) {
-      const headers = line.split("|").map(h => h.trim()).filter(Boolean);
-      i += 2; // skip separator
-      const rows: string[][] = [];
-      while (i < lines.length && lines[i].includes("|")) {
-        rows.push(lines[i].split("|").map(c => c.trim()).filter(Boolean));
-        i++;
-      }
-      nodes.push(
-        <div key={i} className="my-3 overflow-x-auto rounded-xl border border-border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/80">
-                {headers.map((h, hi) => (
-                  <th key={hi} className="px-4 py-2.5 text-left font-semibold text-xs border-b border-border text-foreground">
-                    {inlineFormat(h, hi)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, ri) => (
-                <tr key={ri} className={ri % 2 === 0 ? "bg-transparent" : "bg-muted/20"}>
-                  {row.map((cell, ci) => (
-                    <td key={ci} className="px-4 py-2 border-b border-border/50 text-sm">
-                      {inlineFormat(cell, ci)}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      );
-      continue;
-    }
-
-    // Callout boxes  :::note  :::tip  :::warning
-    if (line.startsWith(":::")) {
-      const kind = line.slice(3).trim();
-      const calloutLines: string[] = [];
-      i++;
-      while (i < lines.length && !lines[i].startsWith(":::")) {
-        calloutLines.push(lines[i]);
-        i++;
-      }
-      const styles: Record<string, string> = {
-        note:    "bg-blue-500/10 border-blue-500/30 text-blue-400",
-        tip:     "bg-green-500/10 border-green-500/30 text-green-400",
-        warning: "bg-amber-500/10 border-amber-500/30 text-amber-400",
-        info:    "bg-indigo-500/10 border-indigo-500/30 text-indigo-400",
-      };
-      const labels: Record<string, string> = { note:"📝 Note", tip:"💡 Tip", warning:"⚠️ Warning", info:"ℹ️ Info" };
-      nodes.push(
-        <div key={i} className={`my-3 rounded-xl border p-4 ${styles[kind] ?? styles.info}`}>
-          <p className="text-xs font-bold mb-1.5">{labels[kind] ?? kind}</p>
-          <div className="text-sm text-foreground/80">{calloutLines.join("\n")}</div>
-        </div>
-      );
-      i++;
-      continue;
-    }
-
-    // Empty line
-    if (line.trim() === "") {
-      nodes.push(<div key={i} className="h-2" />);
-      i++; continue;
-    }
-
-    // Regular paragraph
-    nodes.push(
-      <p key={i} className="text-sm leading-[1.75] my-0.5">
-        {inlineFormat(line, i)}
-      </p>
-    );
-    i++;
-  }
-
-  return nodes;
-}
 
 /* ═══════════════════════════════════════
    SUPPORTED LANGUAGES & GREETINGS
@@ -298,19 +80,29 @@ const LANGUAGES = [
   { code: "Telugu", label: "🇮🇳 Telugu (తెలుగు)" },
 ];
 
-const LANGUAGE_GREETINGS: Record<string, string> = {
-  "Auto-Detect": "Hello! I'm your AI Mentor. What would you like to study today?",
-  "English": "Hello! I'm your AI Mentor. What would you like to study today?",
-  "Hindi": "नमस्ते! मैं आपका एआई मेंटर हूं। आज आप क्या पढ़ना चाहेंगे?",
-  "Hinglish": "Hello! I am your AI Mentor. Let me know what you would like to study today in Hinglish!",
-  "Spanish": "¡Hola! Soy tu mentor de IA. ¿Qué te gustaría estudiar hoy?",
-  "French": "Bonjour ! Je suis votre mentor IA. Qu'aimeriez-vous étudier aujourd'hui ?",
-  "German": "Hallo! Ich bin dein KI-Mentor. Was möchtest du heute lernen?",
-  "Gujarati": "નમસ્તે! હું તમારો AI મેન્ટર છું. આજે તમે શું ભણવા માંગો છો?",
-  "Marathi": "नमस्कार! मी तुमचा एआय मेंटर आहे. आज तुम्हाला काय अभ्यास करायचा आहे?",
-  "Bengali": "হ্যালো! আমি আপনার এআই মেন্টর। আজ আপনি কি পড়তে চান?",
-  "Tamil": "வணக்கம்! நான் உங்கள் AI வழிகாட்டி. இன்று நீங்கள் என்ன படிக்க விரும்புகிறீர்கள்?",
-  "Telugu": "నమస్తే! నేను మీ AI మెంటర్. ఈరోజు మీరు ఏమి చదువుకోవాలనుకుంటున్నారు?",
+const getWelcomeMessage = (targetExam?: string) => {
+  const g = getGreeting();
+  const exam = targetExam || getCurrentTargetExam();
+  return `${g.formattedGreeting}\n\nI noticed you're preparing for **${exam}**.\nWhat topic would you like to discuss or work on today?`;
+};
+
+const getLanguageGreeting = (lang: string, targetExam?: string) => {
+  const welcome = getWelcomeMessage(targetExam);
+  const map: Record<string, string> = {
+    "Auto-Detect": welcome,
+    "English": welcome,
+    "Hindi": "नमस्ते! मैं आपका एआई मेंटर हूं। आज आप क्या पढ़ना चाहेंगे?",
+    "Hinglish": `Hello! I am your AI Mentor. Let me know what you would like to study today for **${targetExam || getCurrentTargetExam()}**!`,
+    "Spanish": "¡Hola! Soy tu mentor de IA. ¿Qué te gustaría estudiar hoy?",
+    "French": "Bonjour ! Je suis votre mentor IA. Qu'aimeriez-vous étudier aujourd'hui ?",
+    "German": "Hallo! Ich bin dein KI-Mentor. Was möchtest du heute lernen?",
+    "Gujarati": "નમસ્તે! હું તમારો AI મેન્ટર છું. આજે તમે શું ભણવા માંગો છો?",
+    "Marathi": "नमस्कार! मी तुमचा एआय मेंटर आहे. आज तुम्हाला काय अभ्यास करायचा आहे?",
+    "Bengali": "হ্যালো! আমি আপনার এআই মেন্টর। আজ আপনি কি পড়তে চান?",
+    "Tamil": "வணக்கம்! நான் உங்கள் AI வழிகாட்டி. இன்று நீங்கள் என்ன படிக்க விரும்புகிறீர்கள்?",
+    "Telugu": "నమస్తే! నేను మీ AI మెంటర్. ఈరోజు మీరు ఏమి చదువుకోవాలనుకుంటున్నారు?",
+  };
+  return map[lang] || welcome;
 };
 
 
@@ -323,7 +115,7 @@ const firstConv: Conversation = {
   preview: "Start a new conversation…",
   timestamp: new Date(), pinned: false, isDraft: true,
   messages: [
-    { id: uid(), role: "assistant", content: "Hello! I'm your AI Mentor. What would you like to study today?", timestamp: new Date() },
+    { id: uid(), role: "assistant", content: getWelcomeMessage(), timestamp: new Date() },
   ],
 };
 const seedConvs: Conversation[] = [firstConv];
@@ -511,12 +303,18 @@ const quickPrompts = [
 ];
 
 export default function AITutor() {
+  const { user, updateUser } = useAuth();
+  const activeExam = getCurrentTargetExam(user);
+
   const [convs, setConvs]         = useState<Conversation[]>(seedConvs);
   const [activeId, setActiveId]   = useState(seedConvs[0].id);
   const [input, setInput]         = useState("");
   const [typing, setTyping]       = useState(false);
   const [sidebarW, setSidebarW]   = useState(DEF_W);
   const [collapsed, setCollapsed] = useState(false);
+  const [search, setSearch]       = useState("");
+  const [showLangMenu, setShowLangMenu] = useState(false);
+  const [showExamMenu, setShowExamMenu] = useState(false);
 
   useEffect(() => {
     const checkSidebarCollapse = () => {
@@ -528,8 +326,6 @@ export default function AITutor() {
     window.addEventListener("resize", checkSidebarCollapse);
     return () => window.removeEventListener("resize", checkSidebarCollapse);
   }, []);
-  const [search, setSearch]       = useState("");
-  const [showLangMenu, setShowLangMenu] = useState(false);
   const endRef                    = useRef<HTMLDivElement>(null);
   const textareaRef               = useRef<HTMLTextAreaElement>(null);
   const dragging                  = useRef(false);
@@ -537,6 +333,20 @@ export default function AITutor() {
   const dragStartW                = useRef(DEF_W);
 
   const active = convs.find(c => c.id === activeId)!;
+
+  const changeTargetExam = async (newExam: string) => {
+    setCurrentTargetExam(newExam);
+    updateUser({ exam: newExam });
+    setShowExamMenu(false);
+    try {
+      await apiRequest("/profile/update", {
+        method: "PUT",
+        body: JSON.stringify({ exam: newExam }),
+      });
+    } catch {
+      // Ignore network error if offline
+    }
+  };
 
   const updateActiveLanguage = (lang: string) => {
     if (!active) return;
@@ -546,7 +356,7 @@ export default function AITutor() {
         if (c.messages.length === 1 && c.messages[0].role === "assistant") {
           updatedMessages = [{
             ...c.messages[0],
-            content: LANGUAGE_GREETINGS[lang] || LANGUAGE_GREETINGS["Auto-Detect"]
+            content: getLanguageGreeting(lang, activeExam)
           }];
         }
         return { ...c, language: lang, messages: updatedMessages };
@@ -589,7 +399,7 @@ export default function AITutor() {
               language: chat.language || "Auto-Detect",
               messages: messages.length
                 ? messages
-                : [{ id: uid(), role: "assistant" as const, content: "Hello! I'm your AI tutor. What would you like to study today?", timestamp: fallbackTime }],
+                : [{ id: uid(), role: "assistant" as const, content: getWelcomeMessage(), timestamp: fallbackTime }],
             } satisfies Conversation;
           })
         );
@@ -680,7 +490,8 @@ export default function AITutor() {
         body: JSON.stringify({
           chatId: serverChatId,
           question,
-          language: active?.language || "Auto-Detect"
+          language: active?.language || "Auto-Detect",
+          targetExam: activeExam,
         }),
       });
       const reply: Message = {
@@ -717,7 +528,7 @@ export default function AITutor() {
       id: uid(), title: "New Conversation", preview: "Start a new conversation…",
       timestamp: new Date(), pinned: false, isDraft: true,
       language: "Auto-Detect",
-      messages: [{ id: uid(), role: "assistant", content: "Hello! I'm your AI tutor. What would you like to study today?", timestamp: new Date() }],
+      messages: [{ id: uid(), role: "assistant", content: getWelcomeMessage(activeExam), timestamp: new Date() }],
     };
     setConvs(p => [c, ...p]);
     setActiveId(c.id);
@@ -845,6 +656,48 @@ export default function AITutor() {
             <p className="text-xs text-muted-foreground">AI Mentor · Smart study companion</p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Target Exam Selector Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowExamMenu(!showExamMenu)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20 text-xs font-semibold text-primary hover:bg-primary/20 transition-all select-none"
+              >
+                <Target size={13} className="text-primary" />
+                <span className="truncate max-w-[120px]">{activeExam}</span>
+                <ChevronDown size={12} className={`text-primary transition-transform duration-200 ${showExamMenu ? "rotate-180" : ""}`} />
+              </button>
+
+              <AnimatePresence>
+                {showExamMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowExamMenu(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-52 bg-card border border-border rounded-2xl shadow-2xl py-1.5 z-50 max-h-64 overflow-y-auto"
+                    >
+                      <div className="px-3 py-1.5 border-b border-border mb-1">
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Select Target Exam</p>
+                      </div>
+                      {EXAM_OPTIONS.map((ex) => (
+                        <button
+                          key={ex}
+                          onClick={() => changeTargetExam(ex)}
+                          className={`flex items-center justify-between w-full px-3.5 py-2 text-left text-xs transition-colors hover:bg-muted
+                            ${activeExam === ex ? "text-primary font-bold bg-primary/10" : "text-foreground/80"}`}
+                        >
+                          <span>{ex}</span>
+                          {activeExam === ex && <Check size={12} className="text-primary" />}
+                        </button>
+                      ))}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+
             {/* Language Selector Dropdown */}
             <div className="relative">
               <button
