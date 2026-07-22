@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router";
-import { Youtube, Sparkles, Bookmark, History, Compass, RefreshCw, Loader2, AlertCircle, Film } from "lucide-react";
+import { Youtube, Sparkles, Bookmark, History, Compass, Loader2, AlertCircle } from "lucide-react";
 import SearchBar from "./SearchBar";
 import CategoryFilter from "./CategoryFilter";
 import VideoCard, { VideoItem } from "./VideoCard";
@@ -8,14 +8,9 @@ import VideoPlayerModal from "./VideoPlayerModal";
 import SkeletonCard from "./SkeletonCard";
 import RecommendationPanel from "./RecommendationPanel";
 import { apiRequest } from "../../lib/api";
-import { useAuth } from "../../context/AuthContext";
-import { getCurrentTargetExam } from "../../lib/targetExam";
-import { getExamMapping, buildSanitizedSearchQuery } from "../../lib/examCategoryMap";
+import { UNIVERSAL_RECOMMENDED_QUERIES, buildSanitizedSearchQuery } from "../../lib/examCategoryMap";
 
 export default function YouTube() {
-  const { user } = useAuth();
-  const targetExam = getCurrentTargetExam(user);
-  const examMapping = getExamMapping(targetExam);
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Search & Filter state
@@ -37,30 +32,11 @@ export default function YouTube() {
   const [bookmarkedVideos, setBookmarkedVideos] = useState<VideoItem[]>([]);
   const [watchHistory, setWatchHistory] = useState<VideoItem[]>([]);
 
-  // Recommendation Metadata state
-  const [recData, setRecData] = useState<{
-    targetExam: string;
-    weakSubject: string;
-    recommendedQueries: string[];
-  }>({
-    targetExam: targetExam || "General",
-    weakSubject: user?.weakSubject || "None",
-    recommendedQueries: examMapping.recommendedQueries
-  });
+  // Recommendation Queries
+  const [recommendedQueries, setRecommendedQueries] = useState<string[]>(UNIVERSAL_RECOMMENDED_QUERIES);
 
   // Infinite Scroll Observer Target
   const observerTarget = useRef<HTMLDivElement>(null);
-
-  // Reset category & queries whenever active Target Exam changes
-  useEffect(() => {
-    setSelectedCategory("");
-    const newMapping = getExamMapping(targetExam);
-    setRecData({
-      targetExam,
-      weakSubject: user?.weakSubject || "None",
-      recommendedQueries: newMapping.recommendedQueries
-    });
-  }, [targetExam, user?.weakSubject]);
 
   // Keep search input synced with URL ?q= parameter
   useEffect(() => {
@@ -70,7 +46,7 @@ export default function YouTube() {
     }
   }, [searchParams]);
 
-  // Load Bookmarks & History on initial mount
+  // Load Bookmarks, History & Recommendations on initial mount
   useEffect(() => {
     async function loadUserData() {
       try {
@@ -79,8 +55,6 @@ export default function YouTube() {
           apiRequest<{ success: boolean; watchHistory: VideoItem[] }>("/youtube/history"),
           apiRequest<{
             success: boolean;
-            targetExam: string;
-            weakSubject: string;
             recommendedQueries: string[];
           }>("/youtube/recommendations")
         ]);
@@ -99,19 +73,15 @@ export default function YouTube() {
           if (localHist) setWatchHistory(JSON.parse(localHist));
         }
 
-        if (recRes.status === "fulfilled" && recRes.value?.success) {
-          setRecData({
-            targetExam: recRes.value.targetExam || targetExam,
-            weakSubject: recRes.value.weakSubject || "None",
-            recommendedQueries: recRes.value.recommendedQueries || examMapping.recommendedQueries
-          });
+        if (recRes.status === "fulfilled" && recRes.value?.success && recRes.value.recommendedQueries?.length) {
+          setRecommendedQueries(recRes.value.recommendedQueries);
         }
       } catch (e) {
         console.error("Failed to load user video metadata:", e);
       }
     }
     loadUserData();
-  }, [targetExam]);
+  }, []);
 
   // Main API Video Fetcher
   const fetchVideos = useCallback(
@@ -129,7 +99,6 @@ export default function YouTube() {
           category: cat,
           sort: sortOrder,
           pageToken: pageTkn,
-          targetExam,
           maxResults: "12"
         });
 
@@ -159,16 +128,16 @@ export default function YouTube() {
         setLoadingMore(false);
       }
     },
-    [targetExam]
+    []
   );
 
   // Trigger search when query, category, or sort changes
   useEffect(() => {
     if (activeTab === "explore" || activeTab === "recommendations") {
-      const sanitizedQuery = buildSanitizedSearchQuery(query, selectedCategory, targetExam, user?.weakSubject || "");
+      const sanitizedQuery = buildSanitizedSearchQuery(query, selectedCategory);
       fetchVideos(sanitizedQuery, selectedCategory, sort);
     }
-  }, [query, selectedCategory, sort, activeTab, fetchVideos, targetExam, user?.weakSubject]);
+  }, [query, selectedCategory, sort, activeTab, fetchVideos]);
 
   // Infinite Scroll Handler via IntersectionObserver
   useEffect(() => {
@@ -177,7 +146,7 @@ export default function YouTube() {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && nextPageToken && !loadingMore && !loading) {
-          const sanitizedQuery = buildSanitizedSearchQuery(query, selectedCategory, targetExam, user?.weakSubject || "");
+          const sanitizedQuery = buildSanitizedSearchQuery(query, selectedCategory);
           fetchVideos(sanitizedQuery, selectedCategory, sort, nextPageToken, true);
         }
       },
@@ -190,14 +159,14 @@ export default function YouTube() {
     return () => {
       if (currentTarget) observer.unobserve(currentTarget);
     };
-  }, [nextPageToken, loadingMore, loading, activeTab, query, selectedCategory, sort, fetchVideos, targetExam, user?.weakSubject]);
+  }, [nextPageToken, loadingMore, loading, activeTab, query, selectedCategory, sort, fetchVideos]);
 
   // Handle Search input submit
   const handleSearchSubmit = (searchTerm: string) => {
     setSearchParams(searchTerm ? { q: searchTerm } : {});
     setSelectedCategory("");
     setActiveTab("explore");
-    const sanitized = buildSanitizedSearchQuery(searchTerm, "", targetExam, user?.weakSubject || "");
+    const sanitized = buildSanitizedSearchQuery(searchTerm, "");
     fetchVideos(sanitized, "", sort);
   };
 
@@ -205,7 +174,7 @@ export default function YouTube() {
   const handleCategorySelect = (category: string) => {
     setSelectedCategory(category);
     setActiveTab("explore");
-    const sanitized = buildSanitizedSearchQuery(query, category, targetExam, user?.weakSubject || "");
+    const sanitized = buildSanitizedSearchQuery(query, category);
     fetchVideos(sanitized, category, sort);
   };
 
@@ -270,7 +239,7 @@ export default function YouTube() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Learning Videos</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Personalized YouTube Learning Feed for <span className="font-semibold text-primary underline">{targetExam}</span>
+              Universal AI-Powered Educational Video & Course Search
             </p>
           </div>
         </div>
@@ -315,12 +284,12 @@ export default function YouTube() {
                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
             }`}
           >
-            <History size={14} /> History ({watchHistory.length})
+            <History size={14} /> Watch History ({watchHistory.length})
           </button>
         </div>
       </div>
 
-      {/* Large Rounded Search Bar */}
+      {/* Main Search Component */}
       <SearchBar
         query={query}
         setQuery={setQuery}
@@ -329,119 +298,86 @@ export default function YouTube() {
         setSort={setSort}
       />
 
-      {/* Exam-Specific Category Chips Filter */}
-      <CategoryFilter
-        selectedCategory={selectedCategory}
-        onSelectCategory={handleCategorySelect}
-        targetExam={targetExam}
-      />
-
-      {/* Personalized AI Recommendations Hero Strip */}
-      {activeTab === "recommendations" && (
+      {/* AI Recommendation Banner */}
+      {(activeTab === "explore" || activeTab === "recommendations") && (
         <RecommendationPanel
-          targetExam={recData.targetExam}
-          weakSubject={recData.weakSubject}
-          recommendedQueries={recData.recommendedQueries}
-          onSelectQuery={(qStr) => {
-            setQuery(qStr);
-            handleSearchSubmit(qStr);
-          }}
+          recommendedQueries={recommendedQueries}
+          onSelectQuery={(qStr) => handleSearchSubmit(qStr)}
         />
       )}
 
-      {/* Video Grid Section */}
-      <div className="space-y-4">
-        {/* Error Alert Bar */}
-        {error && (
-          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <AlertCircle size={16} />
-              <span>{error}</span>
-            </div>
-            <button
-              onClick={() => {
-                const sanitized = buildSanitizedSearchQuery(query, selectedCategory, targetExam, user?.weakSubject || "");
-                fetchVideos(sanitized, selectedCategory, sort);
-              }}
-              className="px-3 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 font-semibold flex items-center gap-1 transition-colors"
-            >
-              <RefreshCw size={12} /> Retry
-            </button>
-          </div>
-        )}
+      {/* Horizontal Category Filter Chips */}
+      {(activeTab === "explore" || activeTab === "recommendations") && (
+        <CategoryFilter
+          selectedCategory={selectedCategory}
+          onSelectCategory={handleCategorySelect}
+        />
+      )}
 
-        {/* Loading State: Skeleton Shimmer Cards */}
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {Array.from({ length: 8 }).map((_, idx) => (
-              <SkeletonCard key={idx} />
+      {/* Video Content Grid */}
+      {loading && displayedVideos.length === 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          {Array.from({ length: 8 }).map((_, idx) => (
+            <SkeletonCard key={idx} />
+          ))}
+        </div>
+      ) : error && displayedVideos.length === 0 ? (
+        <div className="p-12 text-center bg-card border border-border/80 rounded-3xl space-y-3 max-w-xl mx-auto my-8 shadow-xs">
+          <div className="w-12 h-12 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
+            <AlertCircle size={24} />
+          </div>
+          <h3 className="font-bold text-lg text-foreground">Could not load videos</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">{error}</p>
+          <button
+            onClick={() => fetchVideos(query, selectedCategory, sort)}
+            className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-all inline-flex items-center gap-1.5"
+          >
+            Try Again
+          </button>
+        </div>
+      ) : displayedVideos.length === 0 ? (
+        <div className="p-12 text-center bg-card border border-border/80 rounded-3xl space-y-3 max-w-xl mx-auto my-8 shadow-xs">
+          <h3 className="font-bold text-lg text-foreground">No learning videos found</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {activeTab === "bookmarks"
+              ? "You haven't saved any videos yet. Click the bookmark icon on any video card to save it here."
+              : activeTab === "history"
+              ? "Your watch history is empty. Start watching videos to keep track of them here."
+              : "Try searching for another topic like 'Java DSA', 'React 19', 'AI & Machine Learning', or 'Calculus'."}
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {displayedVideos.map((video) => (
+              <VideoCard
+                key={video.videoId}
+                video={video}
+                onSelectVideo={handleSelectVideo}
+                isBookmarked={bookmarkedVideos.some((v) => v.videoId === video.videoId)}
+                onToggleBookmark={handleToggleBookmark}
+              />
             ))}
           </div>
-        ) : displayedVideos.length === 0 ? (
-          /* Empty State */
-          <div className="flex flex-col items-center justify-center p-12 text-center bg-card/50 border border-dashed border-border/80 rounded-3xl my-8 space-y-3">
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-muted-foreground mb-1">
-              <Film size={28} />
+
+          {/* Infinite Scroll Spinner Target */}
+          {activeTab === "explore" && nextPageToken && (
+            <div ref={observerTarget} className="py-8 flex items-center justify-center">
+              {loadingMore && (
+                <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground bg-card border border-border px-4 py-2 rounded-full shadow-xs">
+                  <Loader2 size={16} className="animate-spin text-primary" /> Loading more videos...
+                </div>
+              )}
             </div>
-            <h3 className="text-lg font-bold text-foreground">No videos found for {targetExam}</h3>
-            <p className="text-xs text-muted-foreground max-w-sm">
-              {activeTab === "bookmarks"
-                ? "You haven't saved any videos yet. Click the bookmark icon on any video to save it here!"
-                : activeTab === "history"
-                ? "Your watch history is empty. Start watching videos to track your history!"
-                : `No learning videos matched your search query for ${targetExam}. Try another keyword or category.`}
-            </p>
-            <button
-              onClick={() => {
-                setQuery("");
-                setSelectedCategory("");
-                setActiveTab("explore");
-                const sanitized = buildSanitizedSearchQuery("", "", targetExam, user?.weakSubject || "");
-                fetchVideos(sanitized, "", sort);
-              }}
-              className="mt-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold shadow-xs hover:opacity-90 transition-opacity"
-            >
-              Reset Search & Category
-            </button>
-          </div>
-        ) : (
-          /* Responsive Video Grid (4 cols desktop, 2 tablet, 1 mobile) */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {displayedVideos.map((video) => {
-              const isBm = bookmarkedVideos.some((v) => v.videoId === video.videoId);
-              return (
-                <VideoCard
-                  key={video.videoId}
-                  video={video}
-                  onSelectVideo={handleSelectVideo}
-                  isBookmarked={isBm}
-                  onToggleBookmark={handleToggleBookmark}
-                />
-              );
-            })}
-          </div>
-        )}
+          )}
+        </>
+      )}
 
-        {/* Infinite Scroll Loader & Sentinel */}
-        {activeTab === "explore" && nextPageToken && (
-          <div ref={observerTarget} className="py-8 flex items-center justify-center">
-            {loadingMore && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-card border border-border px-4 py-2 rounded-full shadow-xs">
-                <Loader2 size={16} className="animate-spin text-primary" />
-                <span>Loading more {targetExam} learning videos...</span>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* In-App YouTube Embedded Player Modal */}
+      {/* Video Player Modal */}
       {selectedVideo && (
         <VideoPlayerModal
           video={selectedVideo}
           onClose={() => setSelectedVideo(null)}
-          relatedVideos={videos.filter((v) => v.videoId !== selectedVideo.videoId)}
-          onSelectVideo={handleSelectVideo}
           isBookmarked={bookmarkedVideos.some((v) => v.videoId === selectedVideo.videoId)}
           onToggleBookmark={handleToggleBookmark}
         />

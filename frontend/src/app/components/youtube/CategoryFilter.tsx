@@ -1,22 +1,17 @@
 import React, { useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { getExamMapping } from "../../lib/examCategoryMap";
+import { UNIVERSAL_CATEGORIES } from "../../lib/examCategoryMap";
 
 interface CategoryFilterProps {
   selectedCategory: string;
   onSelectCategory: (category: string) => void;
-  targetExam?: string;
 }
 
 export default function CategoryFilter({
   selectedCategory,
   onSelectCategory,
-  targetExam = ""
 }: CategoryFilterProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  const mapping = getExamMapping(targetExam);
-  const displayCategories = mapping.categories;
 
   const scroll = (direction: "left" | "right") => {
     if (scrollRef.current) {
@@ -42,7 +37,7 @@ export default function CategoryFilter({
         className="flex gap-2 overflow-x-auto scrollbar-none py-1.5 px-1 scroll-smooth w-full no-scrollbar"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
-        {displayCategories.map((cat) => {
+        {UNIVERSAL_CATEGORIES.map((cat) => {
           const catValue = cat === "All" ? "" : cat;
           const isSelected = selectedCategory === catValue || (cat === "All" && !selectedCategory);
 

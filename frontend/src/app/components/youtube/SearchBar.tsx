@@ -102,7 +102,7 @@ export default function SearchBar({
                 setShowRecent(true);
               }}
               onFocus={() => setShowRecent(true)}
-              placeholder="Search courses, tutorials, playlists, chapters..."
+              placeholder="Search any topic, technology, programming language, interview question, academic subject, research paper, tutorial, or skill..."
               className="w-full pl-12 pr-20 py-3.5 bg-card/80 backdrop-blur-md text-foreground rounded-2xl border border-border/80 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
             />
             <div className="absolute right-3 flex items-center gap-1.5">
@@ -170,9 +170,9 @@ export default function SearchBar({
             className="bg-transparent text-xs font-medium text-foreground focus:outline-none cursor-pointer pr-2"
           >
             <option value="relevance">Most Relevant</option>
-            <option value="date">Newest</option>
             <option value="viewCount">Most Viewed</option>
-            <option value="rating">Top Rated</option>
+            <option value="date">Latest Uploads</option>
+            <option value="rating">Highest Rated</option>
           </select>
         </div>
       </form>
