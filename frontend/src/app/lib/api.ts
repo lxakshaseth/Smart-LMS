@@ -7,10 +7,15 @@ const TOKEN_KEY = "lms_auth_token";
 // ⚠️ Common mistake: setting VITE_API_URL=https://your-render-app.onrender.com
 //    (without /api) causes requests to hit /auth/login instead of /api/auth/login
 //    and results in a CORS error because Express never reaches CORS middleware.
-const _rawApiUrl = import.meta.env.VITE_API_URL || "/api";
-// Strip trailing slash, then ensure it ends with /api for full URLs
-const API_BASE_URL = _rawApiUrl.replace(/\/$/, "");
-
+let rawUrl = (import.meta.env.VITE_API_URL || "/api").trim().replace(/\/$/, "");
+if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+  if (!rawUrl.endsWith("/api")) {
+    rawUrl += "/api";
+  }
+} else if (rawUrl === "" || rawUrl === "/") {
+  rawUrl = "/api";
+}
+const API_BASE_URL = rawUrl;
 
 export class ApiError extends Error {
   status: number;
@@ -46,9 +51,14 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
     headers.set("Content-Type", "application/json");
   }
 
+  let cleanPath = path.startsWith("/") ? path : `/${path}`;
+  if (API_BASE_URL.endsWith("/api") && cleanPath.startsWith("/api/")) {
+    cleanPath = cleanPath.slice(4); // Avoid double /api/api/
+  }
+
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`, {
+    response = await fetch(`${API_BASE_URL}${cleanPath}`, {
       ...options,
       headers,
     });
