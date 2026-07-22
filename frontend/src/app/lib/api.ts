@@ -7,11 +7,13 @@ const TOKEN_KEY = "lms_auth_token";
 // ⚠️ Common mistake: setting VITE_API_URL=https://your-render-app.onrender.com
 //    (without /api) causes requests to hit /auth/login instead of /api/auth/login
 //    and results in a CORS error because Express never reaches CORS middleware.
-let rawUrl = (import.meta.env.VITE_API_URL || "/api").trim().replace(/\/$/, "");
+let rawUrl = (import.meta.env.VITE_API_URL || "").trim().replace(/\/$/, "");
 if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
   if (!rawUrl.endsWith("/api")) {
     rawUrl += "/api";
   }
+} else if (typeof window !== "undefined" && window.location.hostname.includes("vercel.app")) {
+  rawUrl = "https://smart-lms-cfxz.onrender.com/api";
 } else if (rawUrl === "" || rawUrl === "/") {
   rawUrl = "/api";
 }
