@@ -29,6 +29,15 @@ const friendsRoutes = require("./routes/friends.routes");
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
 
+// ⚠️  CRITICAL for Render (and any reverse-proxy deployment):
+// Render's load balancer adds X-Forwarded-For to every request.
+// Without this setting, express-rate-limit v8 throws
+// ERR_ERL_UNEXPECTED_X_FORWARDED_FOR, which our unhandledRejection handler
+// escalates into process.exit(1) — killing the server so every request
+// after restart gets a 404 until the process stabilises.
+// Value '1' means: trust the first proxy hop (Render's own load balancer).
+app.set("trust proxy", 1);
+
 // Compute this early so the GET / health-check can reference hasReactBuild
 // before any route handlers run.
 const frontendDist = path.resolve(__dirname, "../../frontend/dist");
