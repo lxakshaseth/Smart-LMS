@@ -1,20 +1,30 @@
 import { motion } from "motion/react";
-import { Sparkles, Brain, ArrowRight, ShieldCheck, ChevronRight, Zap } from "lucide-react";
+import { Sparkles, Brain, ArrowRight, ShieldCheck, ChevronRight, Zap, Target } from "lucide-react";
 import { Link } from "react-router";
 
 interface AIRecommendationsProps {
   examReadinessPct?: number;
   weakSubject?: string;
+  targetExam?: string;
 }
 
-export function AIRecommendations({ examReadinessPct = 85, weakSubject = "Organic Reactions" }: AIRecommendationsProps) {
+export function AIRecommendations({
+  examReadinessPct = 0,
+  weakSubject,
+  targetExam = "JEE Prep",
+}: AIRecommendationsProps) {
+
+  const focusTopic = weakSubject && weakSubject !== "None" ? weakSubject : "Core Concepts";
+
   const recommendations = [
     {
       id: 1,
       icon: "🎯",
-      title: "Review Weak Topic: Organic Chemistry",
-      desc: "Your accuracy dropped to 58% on Reaction Mechanisms. Take a 10-min focused sprint.",
-      action: "Start Practice",
+      title: `Recommended Review: ${focusTopic}`,
+      desc: weakSubject
+        ? `AI identified ${weakSubject} as a primary focus area. Take a 10-min adaptive quiz to boost mastery.`
+        : `Start practicing topics targeted for ${targetExam} to build your personalized strength profile.`,
+      action: "Start Practice Quiz",
       path: "/quiz",
       color: "text-amber-500",
       bg: "bg-amber-500/10 border-amber-500/20",
@@ -22,8 +32,8 @@ export function AIRecommendations({ examReadinessPct = 85, weakSubject = "Organi
     {
       id: 2,
       icon: "💡",
-      title: "Physics Problem Solving Tip",
-      desc: "Practice Rotational Dynamics vector cross-products before tomorrow's mock test.",
+      title: `${targetExam} Strategy Guidance`,
+      desc: `Get personalized problem-solving strategies and instant doubt clearance from your AI Tutor.`,
       action: "Ask AI Mentor",
       path: "/ai-tutor",
       color: "text-indigo-500",
@@ -44,7 +54,7 @@ export function AIRecommendations({ examReadinessPct = 85, weakSubject = "Organi
             <Sparkles size={18} className="text-violet-500 fill-violet-500" /> AI Recommendations
           </h3>
           <span className="px-2.5 py-0.5 rounded-full bg-violet-500/10 text-violet-500 text-[10px] font-extrabold uppercase tracking-wider">
-            Realtime Adaptive
+            Adaptive Insights
           </span>
         </div>
 
@@ -75,15 +85,17 @@ export function AIRecommendations({ examReadinessPct = 85, weakSubject = "Organi
       <div className="mt-5 pt-4 border-t border-border/60">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            Exam Readiness Score
+            Exam Readiness Index
           </span>
-          <span className="text-xs font-black text-emerald-500">{examReadinessPct}% On Track</span>
+          <span className="text-xs font-black text-emerald-500">
+            {examReadinessPct > 0 ? `${examReadinessPct}% On Track` : "Not Calculated Yet"}
+          </span>
         </div>
 
         <div className="w-full h-2.5 bg-muted/60 rounded-full overflow-hidden mb-3">
           <div
             className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-indigo-500 rounded-full transition-all duration-700"
-            style={{ width: `${examReadinessPct}%` }}
+            style={{ width: `${Math.max(5, examReadinessPct)}%` }}
           />
         </div>
 

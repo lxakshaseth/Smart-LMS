@@ -120,6 +120,73 @@ router.put("/update", protect, async (req, res) => {
 
 /*
 ========================================================
+UPLOAD PROFILE PHOTO
+========================================================
+*/
+router.put("/upload-photo", protect, async (req, res) => {
+  try {
+    const { imageData } = req.body;
+
+    if (!imageData) {
+      return res.status(400).json({ success: false, message: "No image data provided" });
+    }
+
+    // Validate it's a data URI (jpg, png, gif, webp)
+    if (!imageData.startsWith("data:image/")) {
+      return res.status(400).json({ success: false, message: "Invalid image format. Must be JPG, PNG, GIF, or WebP." });
+    }
+
+    // Estimate base64 size → original bytes ≈ base64Length * 0.75
+    const base64Data = imageData.split(",")[1] || "";
+    const estimatedBytes = Math.ceil(base64Data.length * 0.75);
+    const maxBytes = 2 * 1024 * 1024; // 2MB
+
+    if (estimatedBytes > maxBytes) {
+      return res.status(400).json({ success: false, message: "Image too large. Maximum size is 2 MB." });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    user.profileImage = imageData;
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: "Profile photo updated successfully",
+      data: { profileImage: user.profileImage }
+    });
+
+  } catch (error) {
+    console.error("UPLOAD PHOTO ERROR:", error.message);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+/*
+========================================================
+REMOVE PROFILE PHOTO
+========================================================
+*/
+router.delete("/remove-photo", protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    user.profileImage = null;
+    await user.save();
+
+    return res.json({ success: true, message: "Profile photo removed" });
+  } catch (error) {
+    console.error("REMOVE PHOTO ERROR:", error.message);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+/*
+========================================================
 UPDATE SETTINGS
 ========================================================
 */

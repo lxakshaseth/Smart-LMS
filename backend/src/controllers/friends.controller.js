@@ -1,6 +1,8 @@
 const User = require("../models/user.model");
 const FriendRequest = require("../models/friendrequest.model");
 const FriendMessage = require("../models/friendMessage.model");
+const Group = require("../models/group.model");
+const GroupMessage = require("../models/groupMessage.model");
 
 // GET /api/friends
 // Retrieve only accepted friends list
@@ -428,5 +430,120 @@ exports.getChatHistory = async (req, res) => {
       success: false,
       message: "Failed to load chat history"
     });
+  }
+};
+
+// =============================================================
+// GET /api/friends/poll?since=<ISO-timestamp>
+// Silent background sync endpoint — returns only CHANGED data
+// since the last poll. Designed to be called every 5 seconds.
+// Duplicate-safe: always returns data keyed by ID so the client
+// can filter without re-fetching full history.
+// =============================================================
+exports.pollUpdates = async (req, res) => {
+  try {
+    const currentUserId = req.user.id;
+    const { since } = req.query;
+
+    // Parse and validate the `since` timestamp
+    let sinceDate;
+    if (since) {
+      sinceDate = new Date(since);
+      if (isNaN(sinceDate.getTime())) {
+        sinceDate = new Date(Date.now() - 6000); // Fallback: 6 seconds ago
+      }
+    } else {
+      sinceDate = new Date(Date.now() - 6000);
+    }
+
+    // ── 1. New INCOMING private DMs ─────────────────────────────
+    // Only messages where receiver = currentUser and createdAt > since
+    // This catches DMs that Socket.IO may have missed (offline, reconnect)
+    const incomingDocs = await FriendMessage.find({
+      receiver: currentUserId,
+      createdAt: { $gt: sinceDate }
+    })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const newMessages = incomingDocs.map(msg => ({
+      id: msg._id.toString(),
+      senderId: msg.sender.toString(),
+      receiverId: msg.receiver.toString(),
+      content: msg.content,
+      timestamp: msg.createdAt ? msg.createdAt.toISOString() : new Date().toISOString(),
+      status: msg.status || "sent",
+      ...(msg.isAttachment && {
+        isAttachment: true,
+        attachmentType: msg.attachmentType,
+        fileName: msg.fileName,
+        fileSize: msg.fileSize,
+        fileMimeType: msg.fileMimeType,
+        fileData: msg.fileData,
+        fileUrl: msg.fileUrl,
+        audioDuration: msg.audioDuration
+      })
+    }));
+
+    // ── 2. Status updates for OUR SENT DMs ──────────────────────
+    // Find messages we sent whose status changed to delivered or read
+    // after `since`. Enables blue-tick sync without Socket.IO.
+    const statusDocs = await FriendMessage.find({
+      sender: currentUserId,
+      updatedAt: { $gt: sinceDate },
+      status: { $in: ["delivered", "read"] }
+    })
+      .select("_id status")
+      .lean();
+
+    const statusUpdates = statusDocs.map(doc => ({
+      messageId: doc._id.toString(),
+      status: doc.status
+    }));
+
+    // ── 3. Pending friend request count ─────────────────────────
+    const pendingRequestCount = await FriendRequest.countDocuments({
+      receiver: currentUserId,
+      status: "pending"
+    });
+
+    // ── 4. Lightweight group summaries ──────────────────────────
+    // Return lastMessage, lastMessageTime, and unread count per group.
+    // Client uses this to update badges + preview text without fetching
+    // full message history again.
+    const userGroups = await Group.find({ members: currentUserId })
+      .select("_id groupName lastMessage lastMessageTime")
+      .lean();
+
+    const groupUpdates = await Promise.all(
+      userGroups.map(async grp => {
+        const unreadCount = await GroupMessage.countDocuments({
+          groupId: grp._id,
+          isDeleted: { $ne: true },
+          "seenBy.user": { $ne: currentUserId },
+          sender: { $ne: currentUserId }
+        });
+        return {
+          groupId: grp._id.toString(),
+          lastMessage: grp.lastMessage || "",
+          lastMessageTime: grp.lastMessageTime
+            ? new Date(grp.lastMessageTime).toISOString()
+            : null,
+          unreadCount
+        };
+      })
+    );
+
+    return res.status(200).json({
+      success: true,
+      since: sinceDate.toISOString(),
+      newMessages,
+      statusUpdates,
+      pendingRequestCount,
+      groupUpdates
+    });
+  } catch (error) {
+    console.error("POLL UPDATES ERROR:", error.message);
+    return res.status(500).json({ success: false, message: "Poll failed" });
   }
 };

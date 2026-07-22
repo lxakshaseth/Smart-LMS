@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { useTheme } from "../../context/ThemeContext";
@@ -129,6 +129,10 @@ export default function Settings() {
   const [lastName, setLastName]     = useState(user?.fullName?.split(/\s+/).slice(1).join(" ") ?? "");
   const [username, setUsername]     = useState(user?.username ?? "");
   const [targetExam, setTargetExam] = useState(user?.exam ?? getCurrentTargetExam(user));
+  const [photoPreview, setPhotoPreview] = useState<string | null>(user?.profileImage ?? null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { updateUser }              = useAuth();
 
   useEffect(() => {
@@ -136,9 +140,8 @@ export default function Settings() {
       setFirstName(user.fullName?.split(/\s+/)[0] ?? "");
       setLastName(user.fullName?.split(/\s+/).slice(1).join(" ") ?? "");
       setUsername(user.username ?? "");
-      if (user.exam) {
-        setTargetExam(user.exam);
-      }
+      if (user.exam) setTargetExam(user.exam);
+      if (user.profileImage) setPhotoPreview(user.profileImage);
     }
   }, [user]);
 
@@ -173,6 +176,57 @@ export default function Settings() {
       }
     } catch (err: any) {
       alert(err.message || "Failed to save profile changes");
+    }
+  };
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoError(null);
+    if (file.size > 2 * 1024 * 1024) {
+      setPhotoError("Image is too large. Max size is 2 MB.");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      setPhotoError("Only image files are allowed (JPG, PNG, GIF, WebP).");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setPhotoPreview(dataUrl);
+      setPhotoUploading(true);
+      try {
+        const res = await apiRequest<{ success: boolean; data: { profileImage: string } }>(
+          "/profile/upload-photo",
+          { method: "PUT", body: JSON.stringify({ imageData: dataUrl }) }
+        );
+        if (res.success && updateUser) {
+          updateUser({ profileImage: res.data.profileImage });
+        }
+      } catch (err: any) {
+        setPhotoError(err.message || "Upload failed. Please try again.");
+        setPhotoPreview(user?.profileImage ?? null);
+      } finally {
+        setPhotoUploading(false);
+        // Reset file input so the same file can be re-selected
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePhotoRemove = async () => {
+    setPhotoError(null);
+    setPhotoUploading(true);
+    try {
+      await apiRequest("/profile/remove-photo", { method: "DELETE" });
+      setPhotoPreview(null);
+      if (updateUser) updateUser({ profileImage: null });
+    } catch (err: any) {
+      setPhotoError(err.message || "Failed to remove photo.");
+    } finally {
+      setPhotoUploading(false);
     }
   };
 
@@ -233,23 +287,68 @@ export default function Settings() {
           <>
             {/* avatar card */}
             <Card>
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                className="hidden"
+                onChange={handlePhotoSelect}
+              />
               <div className="flex items-center gap-5">
                 <div className="relative flex-shrink-0">
-                  <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-4xl text-white font-bold shadow-lg shadow-primary/30">
-                    {user?.avatar ?? "?"}
-                  </div>
-                  <button className="absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors">
-                    <Camera size={14} />
+                  {/* Avatar display: real photo OR initials */}
+                  {photoPreview ? (
+                    <img
+                      src={photoPreview}
+                      alt="Profile"
+                      className="w-24 h-24 rounded-2xl object-cover shadow-lg ring-2 ring-primary/20"
+                    />
+                  ) : (
+                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-4xl text-white font-bold shadow-lg shadow-primary/30">
+                      {user?.avatar ?? "?"}
+                    </div>
+                  )}
+                  {/* Camera button shortcut */}
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={photoUploading}
+                    className="absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors disabled:opacity-60"
+                    title="Upload Photo"
+                  >
+                    {photoUploading ? (
+                      <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Camera size={14} />
+                    )}
                   </button>
                 </div>
                 <div className="flex-1">
                   <p className="font-semibold text-lg">{user?.fullName ?? "—"}</p>
                   <p className="text-sm text-muted-foreground">{user?.email ?? "—"}</p>
                   <div className="flex gap-2 mt-3">
-                    <button className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors">Upload Photo</button>
-                    <button className="px-3 py-1.5 rounded-lg bg-muted text-muted-foreground text-xs hover:bg-muted/80 transition-colors">Remove</button>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={photoUploading}
+                      className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors disabled:opacity-50"
+                    >
+                      {photoUploading ? "Uploading…" : "Upload Photo"}
+                    </button>
+                    {photoPreview && (
+                      <button
+                        onClick={handlePhotoRemove}
+                        disabled={photoUploading}
+                        className="px-3 py-1.5 rounded-lg bg-muted text-muted-foreground text-xs hover:bg-destructive/10 hover:text-destructive transition-colors disabled:opacity-50"
+                      >
+                        Remove
+                      </button>
+                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1.5">JPG, PNG or GIF · Max 2 MB</p>
+                  {photoError ? (
+                    <p className="text-xs text-destructive mt-1.5 font-medium">{photoError}</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-1.5">JPG, PNG, GIF or WebP · Max 2 MB</p>
+                  )}
                 </div>
                 <div className="hidden sm:flex flex-col items-end gap-1.5">
                   <span className="px-3 py-1 rounded-full bg-green-500/10 text-green-600 text-xs font-medium flex items-center gap-1.5">

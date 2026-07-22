@@ -4,6 +4,7 @@ const auth = require("../middleware/auth.middleware");
 const friendsController = require("../controllers/friends.controller");
 
 router.get("/", auth.protect, friendsController.getFriendsList);
+router.get("/poll", auth.protect, friendsController.pollUpdates);
 router.get("/search", auth.protect, friendsController.searchByUsername);
 router.get("/search-list", auth.protect, friendsController.searchUsers);
 router.get("/requests", auth.protect, friendsController.getPendingRequests);

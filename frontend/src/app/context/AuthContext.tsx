@@ -11,6 +11,7 @@ export interface User {
   fullName: string;
   email: string;
   avatar: string;
+  profileImage?: string | null;
   createdAt: string;
   exam?: string;
   phone?: string;
@@ -40,6 +41,7 @@ interface ApiUser {
   phone?: string;
   exam?: string;
   createdAt?: string;
+  profileImage?: string | null;
 }
 
 interface AuthResponse {
@@ -65,6 +67,7 @@ function normalizeUser(user: ApiUser): User {
     fullName,
     email: user.email,
     avatar: initials(fullName),
+    profileImage: user.profileImage ?? null,
     createdAt: user.createdAt || "",
     exam: user.exam,
     phone: user.phone,

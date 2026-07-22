@@ -25,7 +25,10 @@ const analyticsRoutes = require("./routes/analytics.routes");
 const brainRoutes = require("./routes/brain.routes");
 const profileRoutes = require("./routes/profile.routes");
 const friendsRoutes = require("./routes/friends.routes");
+const groupRoutes = require("./routes/group.routes");
 const FriendMessage = require("./models/friendMessage.model");
+const Group = require("./models/group.model");
+const GroupMessage = require("./models/groupMessage.model");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
@@ -203,6 +206,7 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/brain", brainRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/friends", friendsRoutes);
+app.use("/api/groups", groupRoutes);
 
 app.use("/api", (req, res) => {
   res.status(404).json({
@@ -264,14 +268,237 @@ const onlineUsers = new Map(); // userId -> socketId
 io.on("connection", (socket) => {
   console.log("⚡ Real-time client connected:", socket.id);
 
-  socket.on("register-user", (userId) => {
+  socket.on("register-user", async (userId) => {
     if (userId) {
       const uid = userId.toString();
       onlineUsers.set(uid, socket.id);
       socket.userId = uid;
+      socket.join(`user_${uid}`);
       console.log(`👤 [SOCKET] User registered online: ${uid} -> socket ${socket.id} (Total online: ${onlineUsers.size})`);
+
+      // Auto-join user to all group rooms they belong to
+      try {
+        const userGroups = await Group.find({ members: uid }).select("_id");
+        userGroups.forEach((g) => {
+          socket.join(`group_${g._id.toString()}`);
+        });
+      } catch (gErr) {
+        console.error("Error joining group rooms:", gErr);
+      }
+
       io.emit("user-status-change", { userId: uid, online: true });
     }
+  });
+
+  // ── GROUP SOCKET EVENTS ──────────────────────────────────────────
+  socket.on("create-group", async ({ groupId, memberIds }) => {
+    console.log(`⚡ [SOCKET] Group created: ${groupId}, notifying members`);
+    socket.join(`group_${groupId}`);
+    if (Array.isArray(memberIds)) {
+      memberIds.forEach((mId) => {
+        const memberSocketId = onlineUsers.get(mId.toString());
+        if (memberSocketId) {
+          const memberSocket = io.sockets.sockets.get(memberSocketId);
+          if (memberSocket) {
+            memberSocket.join(`group_${groupId}`);
+          }
+          io.to(memberSocketId).emit("create-group", { groupId });
+        }
+      });
+    }
+  });
+
+  socket.on("join-group", ({ groupId }) => {
+    if (groupId) {
+      socket.join(`group_${groupId}`);
+      console.log(`⚡ [SOCKET] User ${socket.userId} joined room group_${groupId}`);
+    }
+  });
+
+  socket.on("leave-group", ({ groupId }) => {
+    if (groupId) {
+      socket.leave(`group_${groupId}`);
+      console.log(`⚡ [SOCKET] User ${socket.userId} left room group_${groupId}`);
+    }
+  });
+
+  socket.on("rename-group", ({ groupId, groupName, groupDescription, groupAvatar }) => {
+    if (groupId) {
+      io.to(`group_${groupId}`).emit("rename-group", { groupId, groupName, groupDescription, groupAvatar });
+    }
+  });
+
+  socket.on("member-added", ({ groupId, addedMembers }) => {
+    if (groupId) {
+      if (Array.isArray(addedMembers)) {
+        addedMembers.forEach((m) => {
+          const mId = m.id || m;
+          const memberSocketId = onlineUsers.get(mId.toString());
+          if (memberSocketId) {
+            const memberSocket = io.sockets.sockets.get(memberSocketId);
+            if (memberSocket) memberSocket.join(`group_${groupId}`);
+          }
+        });
+      }
+      io.to(`group_${groupId}`).emit("member-added", { groupId, addedMembers });
+    }
+  });
+
+  socket.on("member-removed", ({ groupId, memberId }) => {
+    if (groupId && memberId) {
+      const memberSocketId = onlineUsers.get(memberId.toString());
+      if (memberSocketId) {
+        const memberSocket = io.sockets.sockets.get(memberSocketId);
+        if (memberSocket) memberSocket.leave(`group_${groupId}`);
+      }
+      io.to(`group_${groupId}`).emit("member-removed", { groupId, memberId });
+    }
+  });
+
+  socket.on("typing-group", ({ groupId, userId, userName }) => {
+    if (groupId) {
+      socket.to(`group_${groupId}`).emit("typing-group", { groupId, userId, userName });
+    }
+  });
+
+  socket.on("stop-typing-group", ({ groupId, userId }) => {
+    if (groupId) {
+      socket.to(`group_${groupId}`).emit("stop-typing-group", { groupId, userId });
+    }
+  });
+
+  socket.on("group-message", async ({
+    groupId, content, messageType,
+    isAttachment, attachmentType, fileName, fileSize, fileMimeType, fileData, fileUrl, audioDuration, replyTo
+  }) => {
+    if (!socket.userId || !groupId) return;
+    const senderId = socket.userId.toString();
+
+    console.log(`📤 [SOCKET] Group message in ${groupId} from ${senderId}`);
+
+    try {
+      const group = await Group.findById(groupId);
+      if (!group) return;
+
+      // Determine which group members are online right now
+      const onlineDelivered = [];
+      group.members.forEach((m) => {
+        const mId = m.toString();
+        if (mId === senderId || onlineUsers.has(mId)) {
+          onlineDelivered.push({ user: mId, deliveredAt: new Date() });
+        }
+      });
+
+      const savedMsg = await GroupMessage.create({
+        groupId,
+        sender: senderId,
+        content: content || "",
+        messageType: messageType || (isAttachment ? attachmentType || "document" : "text"),
+        isAttachment: Boolean(isAttachment),
+        attachmentType,
+        fileName,
+        fileSize,
+        fileMimeType,
+        fileData,
+        fileUrl,
+        audioDuration,
+        replyTo,
+        deliveredTo: onlineDelivered,
+        seenBy: [{ user: senderId, seenAt: new Date() }],
+      });
+
+      group.lastMessage = isAttachment ? `[${attachmentType || "File"}] ${fileName || ""}` : (content || "");
+      group.lastMessageTime = new Date();
+      group.lastMessageSender = senderId;
+      await group.save();
+
+      const senderUser = await User.findById(senderId).select("name username");
+      const senderName = senderUser ? (senderUser.name || senderUser.username) : "LMS User";
+
+      const totalMembersExceptSender = Math.max(1, group.members.length - 1);
+      const isDeliveredToAll = onlineDelivered.length >= group.members.length;
+
+      const payload = {
+        id: savedMsg._id.toString(),
+        groupId,
+        senderId,
+        senderName,
+        senderAvatar: (senderName || "LU").trim().split(/\s+/).map((w) => w[0]).join("").toUpperCase().slice(0, 2),
+        content: savedMsg.content,
+        messageType: savedMsg.messageType,
+        timestamp: savedMsg.createdAt.toISOString(),
+        status: isDeliveredToAll ? "delivered" : "sent",
+        isAttachment: savedMsg.isAttachment,
+        attachmentType: savedMsg.attachmentType,
+        fileName: savedMsg.fileName,
+        fileSize: savedMsg.fileSize,
+        fileMimeType: savedMsg.fileMimeType,
+        fileData: savedMsg.fileData,
+        fileUrl: savedMsg.fileUrl,
+        audioDuration: savedMsg.audioDuration,
+        replyTo: savedMsg.replyTo,
+        reactions: [],
+        isDeleted: false,
+        isPinned: false,
+      };
+
+      // Broadcast message to group room
+      io.to(`group_${groupId}`).emit("receive-group-message", payload);
+
+      // Send delivery confirmation back to sender
+      socket.emit("group-message-delivered", {
+        messageId: savedMsg._id.toString(),
+        groupId,
+        status: payload.status,
+      });
+
+    } catch (err) {
+      console.error("❌ [SOCKET] Group message error:", err);
+    }
+  });
+
+  socket.on("group-message-read", async ({ groupId, messageIds }) => {
+    if (!socket.userId || !groupId) return;
+    const userId = socket.userId.toString();
+    const now = new Date();
+
+    try {
+      const filter = {
+        groupId,
+        sender: { $ne: userId },
+        "seenBy.user": { $ne: userId },
+      };
+      if (Array.isArray(messageIds) && messageIds.length > 0) {
+        filter._id = { $in: messageIds };
+      }
+
+      await GroupMessage.updateMany(filter, {
+        $push: { seenBy: { user: userId, seenAt: now } },
+      });
+
+      // Fetch group total members to update blue tick status
+      const group = await Group.findById(groupId);
+      if (!group) return;
+      const totalMembers = group.members.length;
+
+      io.to(`group_${groupId}`).emit("group-message-read", {
+        groupId,
+        userId,
+        seenAt: now.toISOString(),
+        totalMembers,
+      });
+    } catch (err) {
+      console.error("❌ [SOCKET] group-message-read error:", err);
+    }
+  });
+
+  socket.on("group-message-deleted", async ({ groupId, messageId, deleteForEveryone }) => {
+    if (!groupId || !messageId) return;
+    io.to(`group_${groupId}`).emit("group-message-deleted", {
+      groupId,
+      messageId,
+      deleteForEveryone,
+    });
   });
 
   socket.on("call-user", ({ to, offer, fromName, fromAvatar, isVideo }) => {
