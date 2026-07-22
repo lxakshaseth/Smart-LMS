@@ -2,14 +2,55 @@ import { motion } from "motion/react";
 import { Star, Award, Zap, Flame, ShieldCheck } from "lucide-react";
 import { Link } from "react-router";
 
-const achievements = [
-  { icon: "🔥", label: "7-Day Streak", desc: "Unstoppable Momentum", color: "from-orange-500/10 to-amber-500/10", border: "border-orange-500/20" },
-  { icon: "⚡", label: "Quiz Master", desc: "100 Quizzes Solved", color: "from-indigo-500/10 to-purple-500/10", border: "border-indigo-500/20" },
-  { icon: "🦉", label: "Night Owl", desc: "Late Night Study Session", color: "from-blue-500/10 to-cyan-500/10", border: "border-blue-500/20" },
-  { icon: "🎯", label: "Bullseye", desc: "100% Quiz Accuracy", color: "from-emerald-500/10 to-teal-500/10", border: "border-emerald-500/20" },
-];
+interface AchievementsWidgetProps {
+  streak?: number;
+  xp?: number;
+  level?: number;
+  accuracy?: number;
+}
 
-export function AchievementsWidget() {
+export function AchievementsWidget({ streak = 0, xp = 0, level = 1, accuracy = 0 }: AchievementsWidgetProps) {
+  const achievements = [
+    {
+      id: "streak",
+      icon: "🔥",
+      label: streak > 0 ? `${streak}-Day Streak` : "Streak Novice",
+      desc: streak > 0 ? "Daily Momentum" : "Complete a session today",
+      unlocked: streak > 0,
+      color: "from-orange-500/10 to-amber-500/10",
+      border: "border-orange-500/20",
+    },
+    {
+      id: "xp",
+      label: xp >= 500 ? "XP Scholar" : "XP Apprentice",
+      icon: "⚡",
+      desc: xp >= 500 ? "500+ XP Achieved" : "Earn 500 XP to unlock",
+      unlocked: xp >= 500,
+      color: "from-indigo-500/10 to-purple-500/10",
+      border: "border-indigo-500/20",
+    },
+    {
+      id: "level",
+      icon: "🏅",
+      label: `Level ${level} Pioneer`,
+      desc: `Rank Level ${level}`,
+      unlocked: true,
+      color: "from-blue-500/10 to-cyan-500/10",
+      border: "border-blue-500/20",
+    },
+    {
+      id: "accuracy",
+      icon: "🎯",
+      label: accuracy >= 70 ? "Precision Master" : "Quiz Explorer",
+      desc: accuracy >= 70 ? `${accuracy}% Quiz Accuracy` : "Reach 70%+ accuracy",
+      unlocked: accuracy >= 70,
+      color: "from-emerald-500/10 to-teal-500/10",
+      border: "border-emerald-500/20",
+    },
+  ];
+
+  const unlockedCount = achievements.filter((a) => a.unlocked).length;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -20,18 +61,20 @@ export function AchievementsWidget() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-base flex items-center gap-2">
-            <Star size={18} className="text-amber-400 fill-amber-400" /> Recent Achievements
+            <Star size={18} className="text-amber-400 fill-amber-400" /> Milestone Achievements
           </h3>
           <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500 text-[10px] font-extrabold">
-            4 Unlocked
+            {unlockedCount} Unlocked
           </span>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {achievements.map((a) => (
             <div
-              key={a.label}
-              className={`flex flex-col items-center gap-1.5 p-3.5 rounded-2xl bg-gradient-to-br ${a.color} border ${a.border} hover:scale-105 transition-all duration-200 cursor-pointer text-center`}
+              key={a.id}
+              className={`flex flex-col items-center gap-1.5 p-3.5 rounded-2xl bg-gradient-to-br ${a.color} border ${a.border} ${
+                a.unlocked ? "opacity-100 hover:scale-105" : "opacity-50 grayscale"
+              } transition-all duration-200 cursor-pointer text-center`}
             >
               <span className="text-2xl">{a.icon}</span>
               <p className="text-xs font-bold text-foreground leading-tight">{a.label}</p>
@@ -43,7 +86,7 @@ export function AchievementsWidget() {
 
       <div className="mt-4 pt-3 border-t border-border/60 text-center">
         <Link to="/analytics" className="text-xs font-bold text-primary hover:underline">
-          View Badges & Milestone Certificate →
+          View Badges & Milestone Certificates →
         </Link>
       </div>
     </motion.div>

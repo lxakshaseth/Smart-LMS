@@ -92,6 +92,11 @@ const userSchema = new mongoose.Schema({
     default: false
   },
 
+  profileImage: {
+    type: String,
+    default: null
+  },
+
   /* ================= ANALYTICS ================= */
 
   totalQuestions: { type: Number, default: 0 },

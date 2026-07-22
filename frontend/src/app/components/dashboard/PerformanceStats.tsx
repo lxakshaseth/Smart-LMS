@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Flame, Target, Zap, Trophy, Clock, CheckCircle2, BookOpen, AlertCircle, Calendar, TrendingUp } from "lucide-react";
+import { Flame, Target, Zap, Trophy, Clock, CheckCircle2, BookOpen, AlertCircle, TrendingUp } from "lucide-react";
 
 interface StatItem {
   id: string;
@@ -20,8 +20,6 @@ interface PerformanceStatsProps {
   questionsSolved?: number;
   coursesCompleted?: number;
   weakSubject?: string;
-  dailyGoalPct?: number;
-  weeklyGoalPct?: number;
 }
 
 export function PerformanceStats({
@@ -29,19 +27,17 @@ export function PerformanceStats({
   accuracy,
   xpToday,
   rank,
-  avgStudyTime = "1.5 hrs/day",
-  questionsSolved = 142,
-  coursesCompleted = 4,
-  weakSubject = "Organic Chemistry",
-  dailyGoalPct = 75,
-  weeklyGoalPct = 82,
+  avgStudyTime = "0 hrs/day",
+  questionsSolved = 0,
+  coursesCompleted = 0,
+  weakSubject,
 }: PerformanceStatsProps) {
   const stats: StatItem[] = [
     {
       id: "streak",
       label: "Study Streak",
-      value: `${streak} Days`,
-      subText: streak > 0 ? "Keep it up!" : "Start studying today",
+      value: streak > 0 ? `${streak} Days` : "0 Days",
+      subText: streak > 0 ? "Daily momentum" : "Start a session to build streak",
       icon: <Flame size={20} className="text-orange-300 fill-orange-300" />,
       gradient: "from-orange-600/90 to-amber-600/70",
       iconBg: "bg-white/20",
@@ -50,7 +46,7 @@ export function PerformanceStats({
       id: "accuracy",
       label: "Quiz Accuracy",
       value: accuracy > 0 ? `${accuracy}%` : "—",
-      subText: accuracy > 0 ? "Above average" : "Take quizzes to measure",
+      subText: accuracy > 0 ? "Overall accuracy" : "Complete quizzes to calculate",
       icon: <Target size={20} className="text-emerald-300" />,
       gradient: "from-emerald-600/90 to-teal-600/70",
       iconBg: "bg-white/20",
@@ -59,25 +55,25 @@ export function PerformanceStats({
       id: "xpToday",
       label: "XP Earned Today",
       value: `${xpToday}`,
-      subText: "+45 XP from last session",
+      subText: xpToday > 0 ? "Today's total" : "Study today to earn XP",
       icon: <Zap size={20} className="text-yellow-300 fill-yellow-300" />,
       gradient: "from-indigo-600/90 to-purple-600/70",
       iconBg: "bg-white/20",
     },
     {
       id: "rank",
-      label: "Class Rank",
-      value: rank || "—",
-      subText: "Top 10% in JEE Prep",
+      label: "Leaderboard Rank",
+      value: rank || "Unranked",
+      subText: rank && rank !== "Unranked" ? "Current position" : "Complete quizzes to rank",
       icon: <Trophy size={20} className="text-amber-300 fill-amber-300" />,
       gradient: "from-rose-600/90 to-pink-600/70",
       iconBg: "bg-white/20",
     },
     {
       id: "studyTime",
-      label: "Avg Study Time",
+      label: "Daily Average",
       value: avgStudyTime,
-      subText: "Consistent daily effort",
+      subText: "Focus time average",
       icon: <Clock size={20} className="text-cyan-300" />,
       gradient: "from-blue-600/90 to-cyan-600/70",
       iconBg: "bg-white/20",
@@ -86,25 +82,25 @@ export function PerformanceStats({
       id: "questions",
       label: "Questions Solved",
       value: questionsSolved,
-      subText: "Practice arena progress",
+      subText: "Practice Arena total",
       icon: <CheckCircle2 size={20} className="text-emerald-300" />,
       gradient: "from-teal-600/90 to-emerald-700/70",
       iconBg: "bg-white/20",
     },
     {
       id: "courses",
-      label: "Courses Completed",
+      label: "Completed Modules",
       value: coursesCompleted,
-      subText: "Learning Hub tracks",
+      subText: "Learning tracks finished",
       icon: <BookOpen size={20} className="text-indigo-300" />,
       gradient: "from-violet-600/90 to-indigo-700/70",
       iconBg: "bg-white/20",
     },
     {
       id: "weakTopic",
-      label: "Weak Subject Focus",
-      value: weakSubject || "None",
-      subText: "AI Recommended Review",
+      label: "Focus Subject",
+      value: weakSubject && weakSubject !== "None" ? weakSubject : "Not set",
+      subText: weakSubject ? "AI recommended focus" : "Set in goals / profile",
       icon: <AlertCircle size={20} className="text-amber-300" />,
       gradient: "from-amber-600/90 to-orange-700/70",
       iconBg: "bg-white/20",
@@ -127,7 +123,6 @@ export function PerformanceStats({
             transition={{ duration: 0.2 }}
             className={`relative overflow-hidden rounded-2xl p-4.5 bg-gradient-to-br ${st.gradient} text-white shadow-md border border-white/10 cursor-pointer group`}
           >
-            {/* Ambient Background Radial Blur */}
             <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none group-hover:scale-150 transition-transform duration-500" />
 
             <div className="flex items-start justify-between mb-2">

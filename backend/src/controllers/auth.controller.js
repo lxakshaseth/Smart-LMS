@@ -27,7 +27,8 @@ const serializeUser = (user) => ({
   exam: user.exam || "",
   level: user.level,
   xp: user.xp,
-  createdAt: user.createdAt
+  createdAt: user.createdAt,
+  profileImage: user.profileImage || null
 });
 
 /* =======================================================

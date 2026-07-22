@@ -27,13 +27,14 @@ export function HeroBanner({ user, streak, xp, level, rank }: HeroBannerProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
-      className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-700 p-6 md:p-8 shadow-2xl shadow-indigo-900/30 text-white"
+      className="relative z-0 overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-700 p-6 md:p-8 shadow-2xl shadow-indigo-900/30 text-white"
     >
       {/* Decorative ambient background glows */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-cyan-400/20 rounded-full translate-y-1/2 blur-2xl pointer-events-none" />
 
-      <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <div className="relative z-0 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+
         
         {/* Left Column: Greeting & Action Buttons */}
         <div className="space-y-4 max-w-2xl">

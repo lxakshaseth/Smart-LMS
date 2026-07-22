@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Trophy, ChevronRight, Medal, Crown } from "lucide-react";
+import { Trophy, ChevronRight, Users, UserPlus } from "lucide-react";
 import { Link } from "react-router";
 
 interface LeaderItem {
@@ -13,18 +13,51 @@ interface LeaderItem {
 
 interface LeaderboardWidgetProps {
   user?: any;
+  friends?: any[];
 }
 
-export function LeaderboardWidget({ user }: LeaderboardWidgetProps) {
+export function LeaderboardWidget({ user, friends = [] }: LeaderboardWidgetProps) {
   const currentUserName = user?.fullName?.split(" ")[0] || "You";
 
-  const leaderboard: LeaderItem[] = [
-    { rank: 1, name: "Ayush Anand", xp: 3450, avatar: "AA", badge: "🥇" },
-    { rank: 2, name: "Anil Kumar", xp: 3120, avatar: "AK", badge: "🥈" },
-    { rank: 3, name: currentUserName, xp: Math.max(2850, user?.xp || 0), avatar: user?.avatar || "ME", badge: "🥉", me: true },
-    { rank: 4, name: "Priya Sharma", xp: 2640, avatar: "PS" },
-    { rank: 5, name: "Rohan Verma", xp: 2410, avatar: "RV" },
-  ];
+  let leaderboard: LeaderItem[] = [];
+
+  if (friends && friends.length > 0) {
+    const formattedFriends: LeaderItem[] = friends.map((f, idx) => ({
+      rank: idx + 1,
+      name: f.fullName || f.name || "Study Partner",
+      xp: (f.xp || 0) + (idx === 0 ? 500 : 200),
+      avatar: f.avatar || "SP",
+      badge: idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : undefined,
+    }));
+
+    // Insert user into list
+    formattedFriends.push({
+      rank: formattedFriends.length + 1,
+      name: currentUserName,
+      xp: user?.xp || 0,
+      avatar: user?.avatar || "ME",
+      badge: undefined,
+      me: true,
+    });
+
+    leaderboard = formattedFriends.sort((a, b) => b.xp - a.xp).map((item, idx) => ({
+      ...item,
+      rank: idx + 1,
+      badge: idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : undefined,
+    }));
+  } else {
+    // Single user default card when no friends added yet
+    leaderboard = [
+      {
+        rank: 1,
+        name: currentUserName,
+        xp: user?.xp || 0,
+        avatar: user?.avatar || "ME",
+        badge: "🥇",
+        me: true,
+      },
+    ];
+  }
 
   return (
     <motion.div
@@ -38,13 +71,13 @@ export function LeaderboardWidget({ user }: LeaderboardWidgetProps) {
           <h3 className="font-bold text-base flex items-center gap-2">
             <Trophy size={18} className="text-amber-400 fill-amber-400" /> Study Leaderboard
           </h3>
-          <span className="text-xs font-semibold text-muted-foreground">This Week</span>
+          <span className="text-xs font-semibold text-muted-foreground">Active Peers</span>
         </div>
 
         <div className="space-y-2">
           {leaderboard.map((p) => (
             <div
-              key={p.rank}
+              key={p.name + p.rank}
               className={`flex items-center gap-3 p-3 rounded-2xl transition-all ${
                 p.me
                   ? "bg-primary/10 border border-primary/30 shadow-xs"
@@ -78,11 +111,23 @@ export function LeaderboardWidget({ user }: LeaderboardWidgetProps) {
             </div>
           ))}
         </div>
+
+        {friends.length === 0 && (
+          <div className="mt-3 p-3 rounded-xl bg-muted/20 border border-border/50 text-center">
+            <p className="text-xs text-muted-foreground font-medium">Add study partners to compete on the weekly leaderboard!</p>
+            <Link
+              to="/friends"
+              className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 rounded-xl bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-all"
+            >
+              <UserPlus size={13} /> Find Study Partners
+            </Link>
+          </div>
+        )}
       </div>
 
       <div className="mt-4 pt-3 border-t border-border/60 text-center">
         <Link to="/friends" className="text-xs font-bold text-primary hover:underline flex items-center justify-center gap-1">
-          View Friends & Global Rankings <ChevronRight size={13} />
+          View All Friends & Rankings <ChevronRight size={13} />
         </Link>
       </div>
     </motion.div>
