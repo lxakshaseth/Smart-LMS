@@ -56,32 +56,15 @@ exports.searchYouTube = async ({
   pageToken = "",
   maxResults = 12,
   sort = "relevance",
-  targetExam = "",
   difficulty = ""
 }) => {
   const apiKey = process.env.YOUTUBE_API_KEY;
 
-  // Build educational query
-  let searchTerms = [];
-  if (query.trim()) searchTerms.push(query.trim());
-  if (category && category.toLowerCase() !== "all" && !query.toLowerCase().includes(category.toLowerCase())) {
-    searchTerms.push(category);
-  }
-  if (targetExam && !query.toLowerCase().includes(targetExam.toLowerCase())) {
-    searchTerms.push(targetExam);
-  }
-
-  // Educational intent keywords
-  if (!searchTerms.some(term => /tutorial|course|lecture|class|preparation|dsa/i.test(term))) {
-    searchTerms.push("tutorial course");
-  }
-
-  const finalQuery = searchTerms.join(" ");
+  let finalQuery = query.trim() || category || "Educational Tutorials Courses";
 
   // 1. Try Official YouTube Data API v3
   if (apiKey && apiKey.length > 20) {
     try {
-      // Map sort order to YouTube API values (relevance, date, viewCount, rating)
       let apiSort = "relevance";
       if (sort === "date" || sort === "newest") apiSort = "date";
       if (sort === "viewCount" || sort === "mostViewed") apiSort = "viewCount";
@@ -106,7 +89,6 @@ exports.searchYouTube = async ({
       const videoIds = items.map(item => item.id.videoId).filter(Boolean);
 
       if (videoIds.length > 0) {
-        // Fetch detailed stats (duration, view count)
         let detailsMap = {};
         try {
           const videoRes = await axios.get(`https://www.googleapis.com/youtube/v3/videos`, {
@@ -145,7 +127,7 @@ exports.searchYouTube = async ({
             channelAvatar: item.snippet.channelTitle ? item.snippet.channelTitle.substring(0, 2).toUpperCase() : "YT",
             duration: details.duration || "15:00",
             views: details.viewCount || "45K",
-            subject: category || targetExam || "Education",
+            subject: category || "Learning",
             level: difficulty || "All Levels",
             gradient: getRandomGradient(),
             emoji: "🎥"
@@ -179,7 +161,7 @@ exports.searchYouTube = async ({
       channel: v.author?.name || "YouTube Educator",
       channelId: v.author?.url || "",
       channelAvatar: v.author?.name ? v.author.name.substring(0, 2).toUpperCase() : "YT",
-      subject: category || targetExam || "Education",
+      subject: category || "Learning",
       level: difficulty || "All Levels",
       gradient: getRandomGradient(),
       emoji: "🎥"

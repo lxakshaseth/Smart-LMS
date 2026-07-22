@@ -1,16 +1,12 @@
 import React from "react";
-import { Sparkles, Target, Brain, ArrowRight } from "lucide-react";
+import { Sparkles, ArrowRight } from "lucide-react";
 
 interface RecommendationPanelProps {
-  targetExam: string;
-  weakSubject: string;
   recommendedQueries: string[];
   onSelectQuery: (query: string) => void;
 }
 
 export default function RecommendationPanel({
-  targetExam,
-  weakSubject,
   recommendedQueries,
   onSelectQuery
 }: RecommendationPanelProps) {
@@ -23,16 +19,13 @@ export default function RecommendationPanel({
             <h2 className="font-bold text-base text-foreground">AI Personalized Learning Path</h2>
           </div>
           <p className="text-xs text-muted-foreground">
-            Curated YouTube courses tailored for <span className="font-semibold text-primary">{targetExam}</span>
-            {weakSubject && weakSubject !== "None" && (
-              <> & strengthening weak areas in <span className="font-semibold text-destructive">{weakSubject}</span></>
-            )}
+            Curated YouTube courses, tutorials, and practice resources across all topics & skills
           </p>
         </div>
 
         {/* Query Pills */}
         <div className="flex flex-wrap items-center gap-2">
-          {recommendedQueries.slice(0, 4).map((queryStr, idx) => (
+          {recommendedQueries.slice(0, 5).map((queryStr, idx) => (
             <button
               key={idx}
               onClick={() => onSelectQuery(queryStr)}
