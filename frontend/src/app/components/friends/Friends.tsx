@@ -264,7 +264,10 @@ export default function Friends() {
     fetchPendingRequests();
     ringtoneRef.current = new RingtoneGenerator();
 
-    const socketUrl = import.meta.env.VITE_API_URL || "/";
+    // In production the frontend and backend share the same origin, so
+    // Socket.IO should connect to the server root (not /api).
+    // In development, Vite proxies /socket.io to localhost:5000.
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || "/";
     const socket = io(socketUrl, {
       transports: ["websocket", "polling"],
       reconnectionAttempts: 5,
@@ -1550,8 +1553,9 @@ export default function Friends() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const baseUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000";
-      const response = await fetch(`${baseUrl}/api/upload`, {
+      // Use a relative URL so the upload works in both dev (Vite proxy) and
+      // production (same-origin backend). Avoids the broken NEXT_PUBLIC_* prefix.
+      const response = await fetch("/api/upload", {
         method: "POST",
         body: formData
       });

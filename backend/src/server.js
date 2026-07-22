@@ -29,6 +29,12 @@ const friendsRoutes = require("./routes/friends.routes");
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
 
+// Compute this early so the GET / health-check can reference hasReactBuild
+// before any route handlers run.
+const frontendDist = path.resolve(__dirname, "../../frontend/dist");
+const frontendIndex = path.join(frontendDist, "index.html");
+const hasReactBuild = fs.existsSync(frontendIndex);
+
 // 1. Set up CORS allowed origins
 const allowedOrigins = [
   "http://localhost:5173",
@@ -119,9 +125,26 @@ app.post("/api/upload", upload.single("file"), (req, res) => {
 
 app.use("/api", apiLimiter);
 
+// ── Root health-check (Render pings GET / to verify the service is up) ──────
+app.get("/", (req, res, next) => {
+  // Only intercept if the React build is NOT present; otherwise fall through
+  // to the static-file middleware defined later in the file.
+  if (!hasReactBuild) {
+    return res.json({
+      status: "OK",
+      server: "Running",
+      environment: process.env.NODE_ENV || "development"
+    });
+  }
+  next();
+});
+
 app.get("/api/health", (req, res) => {
   res.json({
     success: true,
+    status: "OK",
+    server: "Running",
+    environment: process.env.NODE_ENV || "development",
     message: "Smart AI LMS API is running",
     time: new Date().toISOString()
   });
@@ -153,21 +176,14 @@ app.use("/api", (req, res) => {
 
 // In production, `npm run build` in ../frontend creates this directory.
 // In development Vite serves the UI on port 5173 and proxies /api here.
-const frontendDist = path.resolve(__dirname, "../../frontend/dist");
-const frontendIndex = path.join(frontendDist, "index.html");
-const hasReactBuild = fs.existsSync(frontendIndex);
-
+// On a backend-only Render deployment (rootDir: backend) there is no
+// ../../frontend/dist – hasReactBuild will be false and the API-only mode
+// is used instead.  When the frontend is co-located (monorepo deploy) the
+// static files will be served automatically.
 if (hasReactBuild) {
-  app.use(express.static(frontendDist));
+  app.use(express.static(frontendDist, { index: false }));
+  // SPA fallback — must come after all API routes
   app.get("*", (req, res) => res.sendFile(frontendIndex));
-} else {
-  app.get("/", (req, res) => {
-    res.json({
-      success: true,
-      message: "Smart AI LMS backend is running",
-      frontend: clientOrigins[0]
-    });
-  });
 }
 
 app.use((req, res) => {
@@ -317,17 +333,38 @@ io.on("connection", (socket) => {
   });
 });
 
+// ── Global crash-safety handlers ─────────────────────────────────────────────
+process.on("uncaughtException", (err) => {
+  console.error("[FATAL] Uncaught Exception:", err.message);
+  console.error(err.stack);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("[FATAL] Unhandled Promise Rejection:", reason);
+  process.exit(1);
+});
+
+// ── Boot sequence ─────────────────────────────────────────────────────────────
 if (require.main === module) {
-  connectDB().then(() => {
-    server.listen(PORT, () => {
-      console.log(`Smart AI LMS API: http://localhost:${PORT}`);
-      console.log(
-        hasReactBuild
-          ? `React app: http://localhost:${PORT}`
-          : `React dev app: ${clientOrigins[0]}`
-      );
+  console.log("[BOOT] NODE_ENV  :", process.env.NODE_ENV || "development");
+  console.log("[BOOT] PORT      :", PORT);
+  console.log("[BOOT] Mongo URI :", process.env.MONGODB_URI || process.env.MONGO_URI ? "<set>" : "*** MISSING ***");
+  console.log("[BOOT] Connecting to MongoDB...");
+
+  connectDB()
+    .then(() => {
+      console.log("[BOOT] MongoDB   : Connected ✅");
+      server.listen(PORT, () => {
+        console.log(`[BOOT] Server    : Listening on port ${PORT} ✅`);
+        console.log(`[BOOT] Frontend  : ${hasReactBuild ? `Serving React build from /` : `API-only mode — frontend at ${clientOrigins.find(o => !o.includes("localhost")) || clientOrigins[0]}`}`);
+        console.log("[BOOT] Smart AI LMS is ready to serve requests.");
+      });
+    })
+    .catch((err) => {
+      console.error("[FATAL] Failed to connect to MongoDB:", err.message);
+      process.exit(1);
     });
-  });
 }
 
 module.exports = app;
