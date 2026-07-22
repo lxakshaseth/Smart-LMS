@@ -272,26 +272,40 @@ export default function Friends() {
       if (apiUrl.startsWith("http://") || apiUrl.startsWith("https://")) {
         return apiUrl.replace(/\/api\/?$/, "");
       }
-      if (typeof window !== "undefined" && window.location.hostname.includes("vercel.app")) {
-        return "https://smart-lms-cfxz.onrender.com";
+      if (typeof window !== "undefined") {
+        const host = window.location.hostname;
+        if (host === "localhost" || host === "127.0.0.1") {
+          return "http://localhost:5000";
+        }
+        if (host.includes("vercel.app")) {
+          return "https://smart-lms-cfxz.onrender.com";
+        }
       }
-      return "/";
+      return "http://localhost:5000";
     };
 
     const socketUrl = getSocketUrl();
+    console.log("🔌 [SOCKET] Connecting to Socket.IO URL:", socketUrl);
     const socket = io(socketUrl, {
       transports: ["websocket", "polling"],
+      withCredentials: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 2000
     });
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      console.log("🔌 WhatsApp Socket connected!");
+      console.log("🔌 [SOCKET] Connected successfully! Socket ID:", socket.id);
       if (user?.id) {
+        console.log("👤 [SOCKET] Registering user ID:", user.id);
         socket.emit("register-user", user.id);
       }
     });
+
+    socket.on("connect_error", (err) => {
+      console.error("❌ [SOCKET] Connection error:", err.message);
+    });
+
 
     socket.on("user-status-change", ({ userId, online }: { userId: string; online: boolean }) => {
       setFriends(prev => prev.map(friend => {
@@ -304,9 +318,9 @@ export default function Friends() {
 
     // Real-time messaging listener — handles both text AND attachment messages
     socket.on("receive-message", ({
-      from, content, timestamp,
+      id, from, content, timestamp,
       isAttachment, attachmentType, fileName, fileSize, fileMimeType, fileData, fileUrl, audioDuration
-    }) => {
+    }: any) => {
       // Automatically add to addedFriendIds if not already added
       setAddedFriendIds(prev => {
         if (!prev.includes(from)) {
@@ -319,7 +333,7 @@ export default function Friends() {
         return prev;
       });
       const newMsg: Message = {
-        id: Math.random().toString(36).substring(7),
+        id: id || Math.random().toString(36).substring(7),
         senderId: from,
         receiverId: user?.id || "",
         content,
@@ -340,12 +354,20 @@ export default function Friends() {
 
       setMessages(prev => {
         const list = prev[from] || [];
+        const isDuplicate = list.some(m =>
+          (m.id && newMsg.id && m.id === newMsg.id) ||
+          (m.fileUrl && newMsg.fileUrl && m.fileUrl === newMsg.fileUrl) ||
+          (m.content === newMsg.content && m.fileName === newMsg.fileName && Math.abs(new Date(m.timestamp).getTime() - new Date(newMsg.timestamp).getTime()) < 10000)
+        );
+        if (isDuplicate) return prev;
+
         const updated = { ...prev, [from]: [...list, newMsg] };
         if (user?.email) {
           safeSaveChatMessages(user.email, updated);
         }
         return updated;
       });
+
 
       // Notification beep
       try {
@@ -437,6 +459,61 @@ export default function Friends() {
       socket.disconnect();
     };
   }, [user, isVideoCall]);
+
+  // Re-register user on socket if user.id becomes available after socket connects
+  useEffect(() => {
+    if (user?.id && socketRef.current?.connected) {
+      console.log("👤 [SOCKET] Re-emitting register-user for user:", user.id);
+      socketRef.current.emit("register-user", user.id);
+    }
+  }, [user?.id]);
+
+  // Fetch chat history from MongoDB whenever selected friend changes
+  useEffect(() => {
+    if (!selectedFriend || selectedFriend.isMock || !user?.id) return;
+
+    const fetchChatHistory = async () => {
+      try {
+        const data = await apiRequest<{ success: boolean; messages: Message[] }>(`/friends/messages/${selectedFriend.id}`);
+        if (data.success && Array.isArray(data.messages)) {
+          setMessages(prev => {
+            const currentList = prev[selectedFriend.id] || [];
+            const existingIds = new Set(currentList.map((m: Message) => m.id));
+            const existingUrls = new Set(currentList.map((m: Message) => m.fileUrl).filter(Boolean));
+
+            const newMsgs = data.messages.filter((m: Message) => {
+              if (existingIds.has(m.id)) return false;
+              if (m.fileUrl && existingUrls.has(m.fileUrl)) return false;
+              const matchesContent = currentList.some(
+                c => c.content === m.content &&
+                     c.senderId === m.senderId &&
+                     Math.abs(new Date(c.timestamp).getTime() - new Date(m.timestamp).getTime()) < 10000
+              );
+              return !matchesContent;
+            });
+
+
+            if (newMsgs.length === 0) return prev;
+
+            const combined = [...currentList, ...newMsgs].sort(
+              (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+            );
+            const updated = { ...prev, [selectedFriend.id]: combined };
+            if (user?.email) {
+              safeSaveChatMessages(user.email, updated);
+            }
+            return updated;
+          });
+        }
+      } catch (err) {
+        console.error("❌ Failed to fetch chat history from MongoDB:", err);
+      }
+    };
+
+    fetchChatHistory();
+  }, [selectedFriend?.id, user?.id]);
+
+
 
   // Scroll to bottom helper
   useEffect(() => {
@@ -1564,13 +1641,10 @@ export default function Friends() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      // Use a relative URL so the upload works in both dev (Vite proxy) and
-      // production (same-origin backend). Avoids the broken NEXT_PUBLIC_* prefix.
-      const response = await fetch("/api/upload", {
+      const data = await apiRequest<{ success: boolean; fileUrl: string; fileName: string; fileSize: number; fileMimeType: string }>("/upload", {
         method: "POST",
         body: formData
       });
-      const data = await response.json();
       if (data.success) {
         return {
           fileUrl: data.fileUrl,
@@ -1585,6 +1659,7 @@ export default function Friends() {
       return null;
     }
   };
+
 
   const getFriendLastMsg = (friendId: string) => {
     const list = messages[friendId] || [];

@@ -1,5 +1,6 @@
 const User = require("../models/user.model");
 const FriendRequest = require("../models/friendrequest.model");
+const FriendMessage = require("../models/friendMessage.model");
 
 // GET /api/friends
 // Retrieve only accepted friends list
@@ -374,5 +375,58 @@ exports.relaySignal = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ success: false });
+  }
+};
+
+// GET /api/friends/messages/:friendId
+// Fetch chat message history between current user and friend from MongoDB
+exports.getChatHistory = async (req, res) => {
+  try {
+    const currentUserId = req.user.id;
+    const { friendId } = req.params;
+
+    if (!friendId) {
+      return res.status(400).json({ success: false, message: "Friend ID is required" });
+    }
+
+    const messages = await FriendMessage.find({
+      $or: [
+        { sender: currentUserId, receiver: friendId },
+        { sender: friendId, receiver: currentUserId }
+      ]
+    })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const formattedMessages = messages.map(msg => ({
+      id: msg._id.toString(),
+      senderId: msg.sender.toString(),
+      receiverId: msg.receiver.toString(),
+      content: msg.content,
+      timestamp: msg.createdAt ? msg.createdAt.toISOString() : new Date().toISOString(),
+      status: msg.status || "read",
+      ...(msg.isAttachment && {
+        isAttachment: true,
+        attachmentType: msg.attachmentType,
+        fileName: msg.fileName,
+        fileSize: msg.fileSize,
+        fileMimeType: msg.fileMimeType,
+        fileData: msg.fileData,
+        fileUrl: msg.fileUrl,
+        audioDuration: msg.audioDuration,
+      })
+    }));
+
+    return res.status(200).json({
+      success: true,
+      count: formattedMessages.length,
+      messages: formattedMessages
+    });
+  } catch (error) {
+    console.error("GET CHAT HISTORY ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load chat history"
+    });
   }
 };

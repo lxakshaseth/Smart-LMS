@@ -11,5 +11,6 @@ router.post("/request", auth.protect, friendsController.sendFriendRequest);
 router.put("/request/:requestId", auth.protect, friendsController.respondToRequest);
 router.delete("/partner/:friendId", auth.protect, friendsController.removePartner);
 router.post("/signal", auth.protect, friendsController.relaySignal);
+router.get("/messages/:friendId", auth.protect, friendsController.getChatHistory);
 
 module.exports = router;

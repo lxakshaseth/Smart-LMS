@@ -25,6 +25,7 @@ const analyticsRoutes = require("./routes/analytics.routes");
 const brainRoutes = require("./routes/brain.routes");
 const profileRoutes = require("./routes/profile.routes");
 const friendsRoutes = require("./routes/friends.routes");
+const FriendMessage = require("./models/friendMessage.model");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
@@ -86,7 +87,8 @@ const clientOrigins = isOriginAllowed;
 // 2. Apply Helmet and CORS before any routes (including static / uploads)
 app.use(
   helmet({
-    contentSecurityPolicy: false
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" }
   })
 );
 
@@ -131,7 +133,12 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-app.use("/uploads", express.static(uploadsDir));
+app.use("/uploads", (req, res, next) => {
+  res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  next();
+}, express.static(uploadsDir));
+
 
 app.post("/api/upload", upload.single("file"), (req, res) => {
   if (!req.file) {
@@ -238,7 +245,12 @@ const { Server } = require("socket.io");
 
 const io = new Server(server, {
   cors: {
-    origin: clientOrigins,
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) {
+        return callback(null, true);
+      }
+      callback(null, false);
+    },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true
@@ -254,16 +266,17 @@ io.on("connection", (socket) => {
 
   socket.on("register-user", (userId) => {
     if (userId) {
-      onlineUsers.set(userId, socket.id);
-      socket.userId = userId;
-      console.log(`User registered online: ${userId} -> socket ${socket.id}`);
-      io.emit("user-status-change", { userId, online: true });
+      const uid = userId.toString();
+      onlineUsers.set(uid, socket.id);
+      socket.userId = uid;
+      console.log(`👤 [SOCKET] User registered online: ${uid} -> socket ${socket.id} (Total online: ${onlineUsers.size})`);
+      io.emit("user-status-change", { userId: uid, online: true });
     }
   });
 
   socket.on("call-user", ({ to, offer, fromName, fromAvatar, isVideo }) => {
-    const targetSocketId = onlineUsers.get(to);
-    console.log(`Call requested to user: ${to} (socket: ${targetSocketId}) from ${socket.userId} (${fromName})`);
+    const targetSocketId = onlineUsers.get(to?.toString());
+    console.log(`📞 [SOCKET] Call requested to user: ${to} (socket: ${targetSocketId}) from ${socket.userId} (${fromName})`);
     if (targetSocketId) {
       io.to(targetSocketId).emit("incoming-call", {
         from: socket.userId,
@@ -278,8 +291,8 @@ io.on("connection", (socket) => {
   });
 
   socket.on("accept-call", ({ to, answer }) => {
-    const targetSocketId = onlineUsers.get(to);
-    console.log(`Call accepted by ${socket.userId} for target user: ${to}`);
+    const targetSocketId = onlineUsers.get(to?.toString());
+    console.log(`📞 [SOCKET] Call accepted by ${socket.userId} for target user: ${to}`);
     if (targetSocketId) {
       io.to(targetSocketId).emit("call-accepted", {
         from: socket.userId,
@@ -289,8 +302,8 @@ io.on("connection", (socket) => {
   });
 
   socket.on("reject-call", ({ to }) => {
-    const targetSocketId = onlineUsers.get(to);
-    console.log(`Call rejected by ${socket.userId} for target user: ${to}`);
+    const targetSocketId = onlineUsers.get(to?.toString());
+    console.log(`📞 [SOCKET] Call rejected by ${socket.userId} for target user: ${to}`);
     if (targetSocketId) {
       io.to(targetSocketId).emit("call-rejected", {
         from: socket.userId
@@ -299,7 +312,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("webrtc-signal", ({ to, signal }) => {
-    const targetSocketId = onlineUsers.get(to);
+    const targetSocketId = onlineUsers.get(to?.toString());
     if (targetSocketId) {
       io.to(targetSocketId).emit("webrtc-signal", {
         from: socket.userId,
@@ -309,7 +322,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("ice-candidate", ({ to, candidate }) => {
-    const targetSocketId = onlineUsers.get(to);
+    const targetSocketId = onlineUsers.get(to?.toString());
     if (targetSocketId) {
       io.to(targetSocketId).emit("ice-candidate", {
         from: socket.userId,
@@ -319,8 +332,8 @@ io.on("connection", (socket) => {
   });
 
   socket.on("end-call", ({ to }) => {
-    const targetSocketId = onlineUsers.get(to);
-    console.log(`Call ending between ${socket.userId} and ${to}`);
+    const targetSocketId = onlineUsers.get(to?.toString());
+    console.log(`📞 [SOCKET] Call ending between ${socket.userId} and ${to}`);
     if (targetSocketId) {
       io.to(targetSocketId).emit("end-call", {
         from: socket.userId
@@ -328,40 +341,76 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("send-message", ({
+  socket.on("send-message", async ({
     to, content,
     isAttachment, attachmentType, fileName, fileSize, fileMimeType, fileData, fileUrl, audioDuration
   }) => {
-    const targetSocketId = onlineUsers.get(to);
-    console.log(`Relaying message from ${socket.userId} to ${to} [${isAttachment ? `attachment:${attachmentType}` : "text"}]`);
+    if (!socket.userId || !to) {
+      console.warn("⚠️ [SOCKET] Cannot send message: Missing sender or receiver ID");
+      return;
+    }
+    const senderId = socket.userId.toString();
+    const receiverId = to.toString();
+
+    console.log(`📤 [SOCKET] Relaying message from ${senderId} to ${receiverId} [${isAttachment ? `attachment:${attachmentType}` : "text"}]`);
+
+    // 1. Save message to MongoDB for persistence
+    let savedMsg = null;
+    try {
+      savedMsg = await FriendMessage.create({
+        sender: senderId,
+        receiver: receiverId,
+        content: content || "",
+        status: "sent",
+        isAttachment: Boolean(isAttachment),
+        attachmentType,
+        fileName,
+        fileSize,
+        fileMimeType,
+        fileData,
+        fileUrl,
+        audioDuration,
+      });
+      console.log(`💾 [SOCKET] Message saved to MongoDB with ID: ${savedMsg._id}`);
+    } catch (dbErr) {
+      console.error("❌ [SOCKET] Error persisting message to MongoDB:", dbErr);
+    }
+
+    // 2. Relay via Socket.IO if recipient is connected
+    const targetSocketId = onlineUsers.get(receiverId);
+    console.log(`🎯 [SOCKET] Receiver ${receiverId} socket state: ${targetSocketId ? `ONLINE (${targetSocketId})` : "OFFLINE"}`);
+
     if (targetSocketId) {
       io.to(targetSocketId).emit("receive-message", {
-        from: socket.userId,
+        id: savedMsg ? savedMsg._id.toString() : Math.random().toString(36).substring(7),
+        from: senderId,
         content,
-        timestamp: new Date().toISOString(),
-        // Pass through all attachment fields so receiver renders the proper media card
+        timestamp: savedMsg?.createdAt ? savedMsg.createdAt.toISOString() : new Date().toISOString(),
         ...(isAttachment && {
           isAttachment: true,
           attachmentType,
           fileName,
           fileSize,
           fileMimeType,
-          fileData,       // base64 data URL fallback
-          fileUrl,        // static HTTP URL
+          fileData,
+          fileUrl,
           audioDuration,
         }),
       });
+      console.log(`✅ [SOCKET] Delivered receive-message event to ${receiverId}`);
     }
   });
 
   socket.on("disconnect", () => {
-    console.log("⚡ Client disconnected:", socket.id);
+    console.log("⚡ [SOCKET] Client disconnected:", socket.id);
     if (socket.userId) {
       onlineUsers.delete(socket.userId);
+      console.log(`🚪 [SOCKET] User offline: ${socket.userId} (Remaining online: ${onlineUsers.size})`);
       io.emit("user-status-change", { userId: socket.userId, online: false });
     }
   });
 });
+
 
 // ── Global crash-safety handlers ─────────────────────────────────────────────
 process.on("uncaughtException", (err) => {
