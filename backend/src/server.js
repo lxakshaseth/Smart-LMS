@@ -54,8 +54,10 @@ const allowedOrigins = [
   "http://127.0.0.1:5173",
   "http://127.0.0.1:3000",
   // Production Vercel deployments (add ALL preview + production URLs)
+  "https://smart-lms-liart.vercel.app",
   "https://smart-lms-pj6i-lake.vercel.app",
   "https://smart-lms-git-main-akshats-projects-eb688e4b.vercel.app",
+  "https://smart-n1ft150ae-akshats-projects-eb688e4b.vercel.app",
 ];
 
 // Parse extra origins from environment variable if present
@@ -72,7 +74,14 @@ if (process.env.CLIENT_URL) {
     });
 }
 
-const clientOrigins = allowedOrigins;
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  if (/\.vercel\.app$/.test(origin)) return true;
+  return false;
+};
+
+const clientOrigins = isOriginAllowed;
 
 // 2. Apply Helmet and CORS before any routes (including static / uploads)
 app.use(
@@ -84,8 +93,7 @@ app.use(
 const corsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (like Postman, mobile apps, curl)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
+    if (isOriginAllowed(origin)) {
       return callback(null, true);
     }
     callback(null, false);
