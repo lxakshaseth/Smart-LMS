@@ -172,6 +172,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+console.log("Auth route registered");
 app.use("/api/ai", aiRoutes);
 app.use("/api/lectures", lectureRoutes);
 app.use("/api/youtube", youtubeRoutes);
@@ -368,6 +369,11 @@ process.on("unhandledRejection", (reason) => {
 
 // ── Boot sequence ─────────────────────────────────────────────────────────────
 if (require.main === module) {
+  console.log("SERVER FILE LOADED");
+  console.log(__filename);
+  console.log(process.cwd());
+  console.log(require.main ? require.main.filename : "");
+
   console.log("[BOOT] ============================================");
   console.log("[BOOT] Smart AI LMS Backend Starting...");
   console.log("[BOOT] NODE_ENV  :", process.env.NODE_ENV || "development");
@@ -377,13 +383,33 @@ if (require.main === module) {
   console.log("[BOOT] CORS origins:");
   allowedOrigins.forEach((o) => console.log("[BOOT]   allowed:", o));
   console.log("[BOOT] Registered routes:");
-  console.log("[BOOT]   GET  /");
-  console.log("[BOOT]   GET  /health");
-  console.log("[BOOT]   GET  /api/health");
-  console.log("[BOOT]   POST /api/auth/login");
-  console.log("[BOOT]   POST /api/auth/register");
-  console.log("[BOOT]   GET  /api/auth/me");
-  console.log("[BOOT]   ...and all other /api/* routes");
+
+  function logAllRoutes(appInstance) {
+    if (!appInstance._router || !appInstance._router.stack) return;
+    appInstance._router.stack.forEach((middleware) => {
+      if (middleware.route) {
+        const methods = Object.keys(middleware.route.methods).join(",").toUpperCase();
+        console.log(`[ROUTE] ${methods} ${middleware.route.path}`);
+      } else if (middleware.name === "router" && middleware.handle.stack) {
+        const basePath = middleware.regexp.source
+          .replace("\\/?(?=\\/|$)", "")
+          .replace("^\\", "")
+          .replace("\\", "")
+          .replace("(?=\\/|$)", "")
+          .replace("^", "")
+          .replace("/?", "");
+        middleware.handle.stack.forEach((handler) => {
+          if (handler.route) {
+            const methods = Object.keys(handler.route.methods).join(",").toUpperCase();
+            const routePath = handler.route.path === "/" ? "" : handler.route.path;
+            console.log(`[ROUTE] ${methods} ${basePath}${routePath}`);
+          }
+        });
+      }
+    });
+  }
+
+  logAllRoutes(app);
   console.log("[BOOT] ============================================");
   console.log("[BOOT] Connecting to MongoDB...");
 
