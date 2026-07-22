@@ -264,10 +264,21 @@ export default function Friends() {
     fetchPendingRequests();
     ringtoneRef.current = new RingtoneGenerator();
 
-    // In production the frontend and backend share the same origin, so
-    // Socket.IO should connect to the server root (not /api).
-    // In development, Vite proxies /socket.io to localhost:5000.
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || "/";
+    const getSocketUrl = () => {
+      if (import.meta.env.VITE_SOCKET_URL) {
+        return import.meta.env.VITE_SOCKET_URL.trim();
+      }
+      const apiUrl = (import.meta.env.VITE_API_URL || "").trim();
+      if (apiUrl.startsWith("http://") || apiUrl.startsWith("https://")) {
+        return apiUrl.replace(/\/api\/?$/, "");
+      }
+      if (typeof window !== "undefined" && window.location.hostname.includes("vercel.app")) {
+        return "https://smart-lms-cfxz.onrender.com";
+      }
+      return "/";
+    };
+
+    const socketUrl = getSocketUrl();
     const socket = io(socketUrl, {
       transports: ["websocket", "polling"],
       reconnectionAttempts: 5,
