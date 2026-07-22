@@ -1,4 +1,7 @@
 const youtubeService = require("../services/youtube.service");
+const User = require("../models/user.model");
+const { getCurrentTargetExam } = require("../utils/targetExam.utils");
+const { getExamMapping } = require("../utils/examCategoryMap");
 
 // =======================================================
 // 1️⃣ SEARCH VIDEOS (YouTube Data API v3 & Fallback)
@@ -13,18 +16,27 @@ exports.searchVideos = async (req, res) => {
       pageToken,
       maxResults = 12,
       sort = "relevance",
-      difficulty
+      difficulty,
+      targetExam
     } = req.query;
+
+    const user = req.user ? await User.findById(req.user.id) : null;
+    const activeTargetExam = targetExam || (user ? getCurrentTargetExam(user) : "Class 12 Boards");
+    const mapping = getExamMapping(activeTargetExam);
 
     let rawQuery = (q || query || "").trim();
     let finalQuery = "";
 
+    // ⚠️ CRITICAL ARCHITECTURE RULE:
+    // If the user entered a search query, execute UNRESTRICTED GLOBAL SEARCH across all YouTube content (e.g. "React", "Python").
+    // Do NOT prefix targetExam to user search queries.
+    // If rawQuery is empty, use the user's targetExam mapping default query to populate the personalized Explore Feed.
     if (rawQuery) {
       finalQuery = rawQuery;
     } else if (category && category !== "All") {
       finalQuery = `${category} course tutorial`;
     } else {
-      finalQuery = "Educational Tutorials Courses";
+      finalQuery = mapping.defaultQuery;
     }
 
     const result = await youtubeService.searchYouTube({
@@ -53,18 +65,23 @@ exports.searchVideos = async (req, res) => {
 // =======================================================
 exports.getRecommendations = async (req, res) => {
   try {
-    const recommendedQueries = [
-      "Full Stack Web Development MERN Tutorial",
-      "Data Structures & Algorithms Complete Course",
-      "Machine Learning & Artificial Intelligence Crash Course",
-      "System Design & Coding Interview Preparation",
-      "Python for Beginners to Advanced Full Course",
-      "Calculus & Higher Mathematics Tutorials",
-      "Operating Systems & Computer Networks Deep Dive"
-    ];
+    const user = req.user ? await User.findById(req.user.id) : null;
+    const targetExam = user ? getCurrentTargetExam(user) : "Class 12 Boards";
+    const weakSubject = (user && user.weakSubject && !["Not Available", "Nursery-LKG", "-"].includes(user.weakSubject))
+      ? user.weakSubject
+      : "";
+
+    const mapping = getExamMapping(targetExam);
+    let recommendedQueries = [...mapping.recommendedQueries];
+
+    // If user has a specific weak subject, prioritize it in top recommendation query
+    if (weakSubject && weakSubject !== "None") {
+      const weakQuery = `${targetExam} ${weakSubject} Full Course & Revision`;
+      recommendedQueries = [weakQuery, ...recommendedQueries.slice(0, 3)];
+    }
 
     // Fetch primary recommendation results
-    const primaryQuery = recommendedQueries[0];
+    const primaryQuery = recommendedQueries[0] || mapping.defaultQuery;
     const result = await youtubeService.searchYouTube({
       query: primaryQuery,
       maxResults: 8
@@ -72,6 +89,8 @@ exports.getRecommendations = async (req, res) => {
 
     res.json({
       success: true,
+      targetExam,
+      weakSubject: weakSubject || "None",
       recommendedQueries,
       videos: result.videos || []
     });
@@ -91,7 +110,6 @@ exports.getRecommendations = async (req, res) => {
 // =======================================================
 exports.toggleBookmark = async (req, res) => {
   try {
-    // In-memory / local storage sync
     res.json({ success: true, message: "Bookmark synced" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

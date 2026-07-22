@@ -8,9 +8,14 @@ import VideoPlayerModal from "./VideoPlayerModal";
 import SkeletonCard from "./SkeletonCard";
 import RecommendationPanel from "./RecommendationPanel";
 import { apiRequest } from "../../lib/api";
-import { UNIVERSAL_RECOMMENDED_QUERIES, buildSanitizedSearchQuery } from "../../lib/examCategoryMap";
+import { useAuth } from "../../context/AuthContext";
+import { getCurrentTargetExam } from "../../lib/targetExam";
+import { getExamMapping, buildSanitizedSearchQuery } from "../../lib/examCategoryMap";
 
 export default function YouTube() {
+  const { user } = useAuth();
+  const targetExam = getCurrentTargetExam(user);
+  const examMapping = getExamMapping(targetExam);
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Search & Filter state
@@ -33,7 +38,15 @@ export default function YouTube() {
   const [watchHistory, setWatchHistory] = useState<VideoItem[]>([]);
 
   // Recommendation Queries
-  const [recommendedQueries, setRecommendedQueries] = useState<string[]>(UNIVERSAL_RECOMMENDED_QUERIES);
+  const [recData, setRecData] = useState<{
+    targetExam: string;
+    weakSubject: string;
+    recommendedQueries: string[];
+  }>({
+    targetExam: targetExam || "Class 12 Boards",
+    weakSubject: user?.weakSubject || "None",
+    recommendedQueries: examMapping.recommendedQueries
+  });
 
   // Infinite Scroll Observer Target
   const observerTarget = useRef<HTMLDivElement>(null);
@@ -46,7 +59,7 @@ export default function YouTube() {
     }
   }, [searchParams]);
 
-  // Load Bookmarks, History & Recommendations on initial mount
+  // Load Bookmarks, History & Recommendations on initial mount or when targetExam changes
   useEffect(() => {
     async function loadUserData() {
       try {
@@ -55,6 +68,8 @@ export default function YouTube() {
           apiRequest<{ success: boolean; watchHistory: VideoItem[] }>("/youtube/history"),
           apiRequest<{
             success: boolean;
+            targetExam: string;
+            weakSubject: string;
             recommendedQueries: string[];
           }>("/youtube/recommendations")
         ]);
@@ -73,15 +88,19 @@ export default function YouTube() {
           if (localHist) setWatchHistory(JSON.parse(localHist));
         }
 
-        if (recRes.status === "fulfilled" && recRes.value?.success && recRes.value.recommendedQueries?.length) {
-          setRecommendedQueries(recRes.value.recommendedQueries);
+        if (recRes.status === "fulfilled" && recRes.value?.success) {
+          setRecData({
+            targetExam: recRes.value.targetExam || targetExam,
+            weakSubject: recRes.value.weakSubject || "None",
+            recommendedQueries: recRes.value.recommendedQueries || examMapping.recommendedQueries
+          });
         }
       } catch (e) {
         console.error("Failed to load user video metadata:", e);
       }
     }
     loadUserData();
-  }, []);
+  }, [targetExam]);
 
   // Main API Video Fetcher
   const fetchVideos = useCallback(
@@ -99,6 +118,7 @@ export default function YouTube() {
           category: cat,
           sort: sortOrder,
           pageToken: pageTkn,
+          targetExam,
           maxResults: "12"
         });
 
@@ -128,16 +148,16 @@ export default function YouTube() {
         setLoadingMore(false);
       }
     },
-    []
+    [targetExam]
   );
 
   // Trigger search when query, category, or sort changes
   useEffect(() => {
     if (activeTab === "explore" || activeTab === "recommendations") {
-      const sanitizedQuery = buildSanitizedSearchQuery(query, selectedCategory);
+      const sanitizedQuery = buildSanitizedSearchQuery(query, selectedCategory, targetExam, user?.weakSubject || "");
       fetchVideos(sanitizedQuery, selectedCategory, sort);
     }
-  }, [query, selectedCategory, sort, activeTab, fetchVideos]);
+  }, [query, selectedCategory, sort, activeTab, fetchVideos, targetExam, user?.weakSubject]);
 
   // Infinite Scroll Handler via IntersectionObserver
   useEffect(() => {
@@ -146,7 +166,7 @@ export default function YouTube() {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && nextPageToken && !loadingMore && !loading) {
-          const sanitizedQuery = buildSanitizedSearchQuery(query, selectedCategory);
+          const sanitizedQuery = buildSanitizedSearchQuery(query, selectedCategory, targetExam, user?.weakSubject || "");
           fetchVideos(sanitizedQuery, selectedCategory, sort, nextPageToken, true);
         }
       },
@@ -159,14 +179,14 @@ export default function YouTube() {
     return () => {
       if (currentTarget) observer.unobserve(currentTarget);
     };
-  }, [nextPageToken, loadingMore, loading, activeTab, query, selectedCategory, sort, fetchVideos]);
+  }, [nextPageToken, loadingMore, loading, activeTab, query, selectedCategory, sort, fetchVideos, targetExam, user?.weakSubject]);
 
   // Handle Search input submit
   const handleSearchSubmit = (searchTerm: string) => {
     setSearchParams(searchTerm ? { q: searchTerm } : {});
     setSelectedCategory("");
     setActiveTab("explore");
-    const sanitized = buildSanitizedSearchQuery(searchTerm, "");
+    const sanitized = buildSanitizedSearchQuery(searchTerm, "", targetExam, user?.weakSubject || "");
     fetchVideos(sanitized, "", sort);
   };
 
@@ -174,7 +194,7 @@ export default function YouTube() {
   const handleCategorySelect = (category: string) => {
     setSelectedCategory(category);
     setActiveTab("explore");
-    const sanitized = buildSanitizedSearchQuery(query, category);
+    const sanitized = buildSanitizedSearchQuery(query, category, targetExam, user?.weakSubject || "");
     fetchVideos(sanitized, category, sort);
   };
 
@@ -239,7 +259,7 @@ export default function YouTube() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Learning Videos</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Universal AI-Powered Educational Video & Course Search
+              Personalized Learning Feed for <span className="font-semibold text-primary underline">{targetExam}</span> & Global Topic Search
             </p>
           </div>
         </div>
@@ -298,10 +318,12 @@ export default function YouTube() {
         setSort={setSort}
       />
 
-      {/* AI Recommendation Banner */}
+      {/* AI Personalized Recommendation Banner */}
       {(activeTab === "explore" || activeTab === "recommendations") && (
         <RecommendationPanel
-          recommendedQueries={recommendedQueries}
+          targetExam={recData.targetExam}
+          weakSubject={recData.weakSubject}
+          recommendedQueries={recData.recommendedQueries}
           onSelectQuery={(qStr) => handleSearchSubmit(qStr)}
         />
       )}
@@ -343,7 +365,7 @@ export default function YouTube() {
               ? "You haven't saved any videos yet. Click the bookmark icon on any video card to save it here."
               : activeTab === "history"
               ? "Your watch history is empty. Start watching videos to keep track of them here."
-              : "Try searching for another topic like 'Java DSA', 'React 19', 'AI & Machine Learning', or 'Calculus'."}
+              : "Try searching for another topic like 'Java DSA', 'React', 'Machine Learning', or 'Physics'."}
           </p>
         </div>
       ) : (
