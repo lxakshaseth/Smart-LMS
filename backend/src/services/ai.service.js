@@ -2,18 +2,16 @@ const OpenAI = require("openai");
 require("dotenv").config();
 
 // =====================================================
-// LOAD GROQ CLIENT SECURELY (.env REQUIRED)
+// GROQ CLIENT SETUP
 // =====================================================
-const useGroq = Boolean(process.env.GROQ_API_KEY);
-const client = new OpenAI({
-  apiKey: process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY,
-  ...(useGroq ? { baseURL: "https://api.groq.com/openai/v1" } : {})
-});
-
-function getModel() {
-  return useGroq
-    ? (process.env.GROQ_MODEL || "llama-3.1-8b-instant")
-    : (process.env.OPENAI_MODEL || "gpt-4o-mini");
+function getGroqClient() {
+  if (!process.env.GROQ_API_KEY) {
+    throw new Error("GROQ_API_KEY is missing in .env file.");
+  }
+  return new OpenAI({
+    apiKey: process.env.GROQ_API_KEY,
+    baseURL: "https://api.groq.com/openai/v1"
+  });
 }
 
 // =====================================================
@@ -22,11 +20,18 @@ function getModel() {
 function cleanAIResponse(text) {
   if (!text) return "";
 
-  // Remove ```json ``` wrappers if present
-  return text
-    .replace(/```json/g, "")
+  let cleaned = text
+    .replace(/```json/gi, "")
     .replace(/```/g, "")
     .trim();
+
+  // Extract raw JSON string if enclosed with commentary or markdown
+  const match = cleaned.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+  if (match) {
+    cleaned = match[0].trim();
+  }
+
+  return cleaned;
 }
 
 // =====================================================
@@ -43,22 +48,19 @@ function safeJSONParse(text) {
 }
 
 // =====================================================
-// CORE GENERIC AI RESPONSE
+// CORE GENERIC AI RESPONSE (GROQ EXCLUSIVE)
 // =====================================================
 async function generateAIResponse(prompt, options = {}) {
   try {
     const systemPrompt = options.system || "You are an intelligent academic AI system. Return clean JSON when requested. Never include markdown unless asked.";
+    const client = getGroqClient();
+    const model = options.model || process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+
     const response = await client.chat.completions.create({
-      model: getModel(),
+      model,
       messages: [
-        {
-          role: "system",
-          content: systemPrompt
-        },
-        {
-          role: "user",
-          content: prompt
-        }
+        { role: "system", content: systemPrompt },
+        { role: "user", content: prompt }
       ],
       temperature: options.temperature || 0.6,
       max_tokens: options.maxTokens || 1500
@@ -66,8 +68,8 @@ async function generateAIResponse(prompt, options = {}) {
 
     return response.choices[0].message.content;
   } catch (error) {
-    console.error("Groq AI Error:", error.response?.data || error.message);
-    throw new Error("AI service failed");
+    console.error("Groq AI Error:", error.message);
+    return null;
   }
 }
 

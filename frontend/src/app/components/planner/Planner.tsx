@@ -4,6 +4,9 @@ import { Button } from "../ui/button";
 import { Plus, CheckCircle, Circle, Sparkles, Send, Loader2 } from "lucide-react";
 import AddTaskPage, { type NewTask } from "./AddTaskPage";
 import { apiRequest } from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
+import { getCurrentTargetExam } from "../../lib/targetExam";
+import { renderMarkdown } from "../../lib/renderMarkdown";
 
 interface Task {
   id: number;
@@ -19,12 +22,15 @@ const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 const initialTasks: Task[] = [];
 
 export default function Planner() {
+  const { user } = useAuth();
+  const targetExam = getCurrentTargetExam(user);
+
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [selectedDay, setSelectedDay] = useState("Monday");
   const [showAddTask, setShowAddTask] = useState(false);
   
   const [messages, setMessages] = useState<{ sender: "user" | "ai"; text: string }[]>([
-    { sender: "ai", text: "Hello! I am your AI study mentor. I can help you plan your schedule and offer tips to improve your weak subjects. How can I help you today?" }
+    { sender: "ai", text: `Hello! I am your AI study mentor for **${targetExam}**. How can I help you plan your schedule today?` }
   ]);
   const [chatInput, setChatInput] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -35,24 +41,32 @@ export default function Planner() {
     const fetchWeakSubject = async () => {
       try {
         const response = await apiRequest<{ success: boolean; planner: any }>("/planner");
-        if (response && response.success && response.planner) {
-          const ws = response.planner.weakSubject;
-          if (ws) {
-            setWeakSubject(ws);
-            setMessages([
-              {
-                sender: "ai",
-                text: `Hello! I noticed your current weak subject is **${ws}**. Let's work together to improve your grades. Ask me any study-related questions or tips to prepare for it!`
-              }
-            ]);
-          }
+        let ws = response?.planner?.weakSubject;
+        if (ws && (ws === "Nursery-LKG" || ws === "General" || ws === "Not Available" || ws === "-")) {
+          ws = "";
+        }
+        if (ws) {
+          setWeakSubject(ws);
+          setMessages([
+            {
+              sender: "ai",
+              text: `Hello! I am your AI study mentor for **${targetExam}**. I noticed **${ws}** is one of your weaker subjects. Let's work together to improve your preparation!`
+            }
+          ]);
+        } else {
+          setMessages([
+            {
+              sender: "ai",
+              text: `Hello! I am your AI study mentor for **${targetExam}**. Ask me any study-related questions or tips to prepare for your exams!`
+            }
+          ]);
         }
       } catch (err) {
         console.error("Failed to fetch weak subject:", err);
       }
     };
     fetchWeakSubject();
-  }, []);
+  }, [user, targetExam]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,7 +80,7 @@ export default function Planner() {
     try {
       const response = await apiRequest<{ success: boolean; reply: string }>("/planner/chat", {
         method: "POST",
-        body: JSON.stringify({ message: userText })
+        body: JSON.stringify({ message: userText, targetExam })
       });
 
       if (response && response.success) {
@@ -253,7 +267,7 @@ export default function Planner() {
                       : "bg-muted text-foreground rounded-tl-none shadow-sm"
                   }`}
                 >
-                  <p className="whitespace-pre-wrap font-medium">{msg.text}</p>
+                  <div className="font-medium">{renderMarkdown(msg.text)}</div>
                 </div>
               ))}
               {isSending && (

@@ -8,5 +8,6 @@ const progressController = require("../controllers/progress.controller");
 // GET USER PROGRESS (Analytics + XP + Graph Data)
 // =====================================================
 router.get("/", protect, progressController.getProgress);
+router.post("/reset", protect, progressController.resetProgress);
 
 module.exports = router;

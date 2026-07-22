@@ -12,6 +12,7 @@ const {
   generateWeeklyReview,
   generateAIResponse
 } = require("../services/ai.service");
+const { getCurrentTargetExam } = require("../utils/targetExam.utils");
 
 
 /* =====================================================
@@ -357,25 +358,41 @@ exports.generateTomorrowPlan = async (req, res) => {
 ===================================================== */
 exports.chatPlanner = async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, targetExam: clientTargetExam } = req.body;
     
     if (!message) {
       return res.status(400).json({ success: false, message: "Message is required" });
     }
 
+    const currentUser = await User.findById(req.user.id);
+    const targetExam = getCurrentTargetExam(currentUser, clientTargetExam);
+
     const planner = await Planner.findOne({ user: req.user.id });
-    const weakSubject = planner ? planner.weakSubject || "General" : "General";
+    const weakSubject = (planner && planner.weakSubject && planner.weakSubject !== "General")
+      ? planner.weakSubject
+      : (currentUser && currentUser.weakSubject && currentUser.weakSubject !== "Not Available")
+        ? currentUser.weakSubject
+        : null;
 
     const prompt = `
-You are a professional academic study mentor. The user has a weak subject: ${weakSubject}.
+You are a professional academic study mentor.
+
+TARGET EXAM CONTEXT:
+Current Target Exam:
+${targetExam}
+
+${weakSubject ? `WEAK SUBJECT CONTEXT:\nWeak Subject:\n${weakSubject}\n` : ""}
 
 Rules:
-1. You MUST ONLY discuss study-related topics, exam preparation, schedule planning, time management, academic subjects, and advice on how to improve weak topics.
-2. Academic subjects, computer science terms, engineering topics, and concepts (such as "dbms", "web dev", "programming concepts", "algorithms", "physics", "math", "history") are ON-TOPIC. You must help the user learn and understand them.
-3. Friendly greetings (such as "hi", "hello", "hey", "good morning") are ON-TOPIC. Respond with a welcoming, brief greeting and offer to assist them with their studies.
-4. If the user's message is completely unrelated to study, academic subjects, exam prep, or learning (e.g., asking how to cook, asking for jokes, discussing sports/movies, asking to write software scripts unrelated to learning, etc.), you MUST politely reject it. Only block items that are clearly non-educational. If blocked, respond with exactly: "I am your study mentor and can only assist with academic or study-related queries. Let's focus on improving your studies!"
-5. Output your response ONLY as clear, conversational, professional plain text.
-6. CRITICAL: Keep your responses extremely short, concise, and clear to understand (maximum 2 sentences). Avoid long paragraphs, wordy intros, or wordy explanations. Get straight to the point.
+1. Always personalize your response using the current target exam ("${targetExam}").
+2. Format the target exam as bold text in markdown: **${targetExam}**.
+${weakSubject ? `3. If weak subject (${weakSubject}) is present, mention it naturally in relation to **${targetExam}**.` : "3. Do not mention weak subjects if unavailable."}
+4. You MUST ONLY discuss study-related topics, exam preparation, schedule planning, time management, academic subjects, and advice on how to improve weak topics.
+5. Academic subjects, computer science terms, engineering topics, and concepts (such as "dbms", "web dev", "programming concepts", "algorithms", "physics", "math", "history") are ON-TOPIC. You must help the user learn and understand them.
+6. Friendly greetings (such as "hi", "hello", "hey", "good morning") are ON-TOPIC. Respond with a welcoming, brief greeting referencing **${targetExam}**.
+7. If the user's message is completely unrelated to study, academic subjects, exam prep, or learning, politely reject it: "I am your study mentor and can only assist with academic or study-related queries. Let's focus on improving your studies!"
+8. Output your response ONLY as clear, conversational, professional plain text.
+9. CRITICAL: Keep your responses extremely short, concise, and clear to understand (maximum 2 sentences). Avoid long paragraphs, wordy intros, or wordy explanations. Get straight to the point.
 
 User's Message: "${message}"
 `;

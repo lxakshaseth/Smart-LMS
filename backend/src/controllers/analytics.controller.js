@@ -22,17 +22,26 @@ const {
 // GET /api/analytics/overview
 // =======================================================
 
+const { getCurrentTargetExam } = require("../utils/targetExam.utils");
+
 exports.getAnalyticsOverview = async (req, res) => {
     try {
 
-        const planner = await Planner.findOne({ user: req.user.id });
+        let planner = await Planner.findOne({ user: req.user.id });
         const user = await User.findById(req.user.id);
 
         if (!planner) {
-            return res.status(404).json({
-                success: false,
-                message: "Planner not found"
-            });
+            planner = {
+                subjectStats: user?.subjectStats || [],
+                weakSubject: (user?.weakSubject && !["Not Available", "Nursery-LKG"].includes(user.weakSubject)) ? user.weakSubject : "",
+                riskScore: 30,
+                riskLevel: "Low",
+                performanceTrend: "Stable",
+                weeklyCompletion: 0,
+                studyStreak: user?.streak || 0,
+                lastMockAccuracy: user?.accuracy || 0,
+                accuracyHistory: []
+            };
         }
 
         // ================= AVERAGE MASTERY =================
@@ -69,19 +78,20 @@ exports.getAnalyticsOverview = async (req, res) => {
                 ? predictNextScore(planner)
                 : { predictedNextScore: 60 };
 
+        const hasActivity = user?.totalQuestions > 0 || user?.totalQuizzes > 0 || user?.totalNotes > 0 || user?.totalStudyHours > 0 || user?.xp > 0;
+
         // ================= EXAM READINESS =================
-        const examData =
-            typeof calculateExamReadiness === "function"
-                ? calculateExamReadiness(
-                      planner,
-                      confidenceData.confidenceScore,
-                      predictionData.predictedNextScore
-                  )
-                : {
-                      examReadinessIndex: 60,
-                      readinessStatus: "Moderate",
-                      focusArea: "Revision"
-                  };
+        const examData = (hasActivity && typeof calculateExamReadiness === "function")
+            ? calculateExamReadiness(
+                  planner,
+                  confidenceData.confidenceScore,
+                  predictionData.predictedNextScore
+              )
+            : {
+                  examReadinessIndex: 0,
+                  readinessStatus: "Not Started",
+                  focusArea: "None"
+              };
 
         // ================= FOCUS SCORE =================
         const focusScore =

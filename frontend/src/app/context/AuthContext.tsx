@@ -105,9 +105,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    const handleUnauthorized = () => {
+      clearAuthToken();
+      if (active) setState({ user: null, isAuthenticated: false, isLoading: false });
+    };
+
+    window.addEventListener("lms:unauthorized", handleUnauthorized);
     restoreSession();
+
     return () => {
       active = false;
+      window.removeEventListener("lms:unauthorized", handleUnauthorized);
     };
   }, []);
 
@@ -154,6 +162,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updateUser = (data: Partial<User>) => {
+    if (data.exam && typeof data.exam === "string") {
+      try {
+        localStorage.setItem("targetExam", data.exam.trim());
+      } catch {}
+    }
     setState((previous) => {
       if (!previous.user) return previous;
       return { ...previous, user: { ...previous.user, ...data } };

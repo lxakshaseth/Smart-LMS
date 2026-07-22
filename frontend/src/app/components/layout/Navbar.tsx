@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Search, Bell, Moon, Sun, LogOut, Settings, User, ChevronDown } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
+import { getCurrentTargetExam } from "../../lib/targetExam";
 import { useNavigate, Link, useLocation } from "react-router";
 import { AnimatePresence, motion } from "motion/react";
 
@@ -84,9 +85,9 @@ export function Navbar() {
                   <div className="px-4 py-3.5 border-b border-border">
                     <p className="font-semibold text-sm truncate">{user?.fullName}</p>
                     <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-                    {user?.exam && (
-                      <span className="mt-1.5 inline-block text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{user.exam}</span>
-                    )}
+                    <span className="mt-1.5 inline-block text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                      🎯 {getCurrentTargetExam(user)}
+                    </span>
                   </div>
                   {/* links */}
                   <div className="py-1.5">
