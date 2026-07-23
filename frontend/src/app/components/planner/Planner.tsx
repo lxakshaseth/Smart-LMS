@@ -222,7 +222,7 @@ export default function Planner() {
             </div>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
             {days.map((day) => {
               const dayTaskCount = tasks.filter((t) => t.day === day).length;
               const completedCount = tasks.filter((t) => t.day === day && t.completed).length;

@@ -44,9 +44,18 @@ export function FloatingAssistant() {
     y: Math.min(Math.max(y, 28), window.innerHeight - 28),
   });
   const clampChat = (x:number, y:number) => ({
-    x: Math.min(Math.max(x, 0), window.innerWidth  - CHAT_W),
-    y: Math.min(Math.max(y, 0), window.innerHeight - 60),
+    x: Math.min(Math.max(x, 8), window.innerWidth  - Math.min(CHAT_W, window.innerWidth - 16)),
+    y: Math.min(Math.max(y, 8), window.innerHeight - 60),
   });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setBtnPos(p => clampBtn(p.x, p.y));
+      setChatPos(p => clampChat(p.x, p.y));
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   /* ── button drag ── */
   const onBtnMouseDown = useCallback((e: React.MouseEvent) => {
@@ -139,7 +148,7 @@ export function FloatingAssistant() {
             animate={{ opacity:1, scale:1 }}
             exit={{ opacity:0, scale:0.9 }}
             transition={{ duration:0.18 }}
-            style={{ left: chatPos.x, top: chatPos.y, width: CHAT_W, zIndex: 9999, position:"fixed" }}
+            style={{ left: chatPos.x, top: chatPos.y, width: CHAT_W, maxWidth: "calc(100vw - 16px)", zIndex: 9999, position:"fixed" }}
             className="flex flex-col rounded-2xl overflow-hidden shadow-2xl shadow-black/30 border border-border bg-card"
           >
             {/* ── drag grip / header ── */}

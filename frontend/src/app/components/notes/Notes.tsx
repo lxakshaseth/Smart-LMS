@@ -617,7 +617,7 @@ export default function Notes() {
           </div>
 
           {/* tabs */}
-          <div className="flex gap-0.5">
+          <div className="flex gap-0.5 overflow-x-auto no-scrollbar pb-1">
             {TABS.map(t => (
               <button key={t.key} onClick={() => setActiveTab(t.key)}
                 className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap

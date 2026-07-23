@@ -355,7 +355,7 @@ export default function Friends() {
         receiverId: user?.id || "",
         content,
         timestamp: timestamp || new Date().toISOString(),
-        status: "read",
+        status: "sent",  // Receiver's copy starts at "sent"; sender gets status upgrades separately
         ...(isAttachment && { isAttachment: true, attachmentType, fileName, fileSize, fileMimeType, fileData, fileUrl, audioDuration }),
       };
 
@@ -523,6 +523,49 @@ export default function Friends() {
       } catch (e) { console.warn("addIceCandidate error:", e); }
     });
 
+    // ── BLUE TICK SOCKET LISTENERS ──────────────────────────────────────────────────
+    // "message-delivered" — grey double tick (receiver got it)
+    socket.on("message-delivered", ({ messageId }: { messageId: string }) => {
+      if (!messageId) return;
+      setMessages(prev => {
+        let changed = false;
+        const result: Record<string, Message[]> = {};
+        for (const [fid, msgs] of Object.entries(prev)) {
+          const updated = msgs.map(m => {
+            if (m.id === messageId && m.status === "sent") {
+              changed = true;
+              return { ...m, status: "delivered" as const };
+            }
+            return m;
+          });
+          result[fid] = changed && result[fid] === undefined ? updated : msgs;
+          result[fid] = updated;
+        }
+        return changed ? result : prev;
+      });
+    });
+
+    // "message-read" — blue double tick (receiver opened conversation)
+    socket.on("message-read", ({ messageIds }: { messageIds: string[] }) => {
+      if (!messageIds || messageIds.length === 0) return;
+      const idSet = new Set(messageIds);
+      setMessages(prev => {
+        let changed = false;
+        const result: Record<string, Message[]> = {};
+        for (const [fid, msgs] of Object.entries(prev)) {
+          const updated = msgs.map(m => {
+            if (idSet.has(m.id) && m.status !== "read") {
+              changed = true;
+              return { ...m, status: "read" as const };
+            }
+            return m;
+          });
+          result[fid] = updated;
+        }
+        return changed ? result : prev;
+      });
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -561,6 +604,10 @@ export default function Friends() {
       setSelectedGroup(null);
       fetchChatHistory(selectedFriend.id);
       setDirectUnread((prev) => ({ ...prev, [selectedFriend.id]: 0 }));
+      // Tell the server we've read all of this friend's messages (triggers blue tick for them)
+      if (socketRef.current?.connected) {
+        socketRef.current.emit("mark-messages-read", { fromUserId: selectedFriend.id });
+      }
     }
   }, [selectedFriend]);
 
