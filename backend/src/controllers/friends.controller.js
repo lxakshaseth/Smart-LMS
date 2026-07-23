@@ -16,17 +16,21 @@ exports.getFriendsList = async (req, res) => {
       $or: [{ sender: currentUserId }, { receiver: currentUserId }]
     }).populate("sender receiver", "name username email phone level xp");
 
+    const onlineUsers = req.app.get("onlineUsers");
+
     const friends = acceptedRequests.map(reqDoc => {
       // Extract the friend (the one who is not the current user)
       const friendObj = reqDoc.sender._id.toString() === currentUserId ? reqDoc.receiver : reqDoc.sender;
+      const fId = friendObj._id.toString();
+      const isOnline = Boolean(onlineUsers && onlineUsers.has(fId));
       return {
-        id: friendObj._id.toString(),
+        id: fId,
         fullName: friendObj.name || friendObj.username || "LMS User",
         email: friendObj.email,
         phone: friendObj.phone || "",
         avatar: (friendObj.name || friendObj.username || "LU").trim().split(/\s+/).map(w => w[0]).join("").toUpperCase().slice(0, 2),
         isMock: false,
-        online: false, // Updated dynamically via WebSockets
+        online: isOnline,
         statusMessage: `Level ${friendObj.level || 1} • ${friendObj.xp || 0} XP`,
         level: friendObj.level || 1
       };
@@ -389,6 +393,31 @@ exports.getChatHistory = async (req, res) => {
 
     if (!friendId) {
       return res.status(400).json({ success: false, message: "Friend ID is required" });
+    }
+
+    // Automatically mark all unread messages sent by friend to current user as "read"
+    const unreadDocs = await FriendMessage.find({
+      sender: friendId,
+      receiver: currentUserId,
+      status: { $in: ["sent", "delivered"] }
+    }).select("_id");
+
+    if (unreadDocs.length > 0) {
+      const unreadIds = unreadDocs.map(d => d._id);
+      await FriendMessage.updateMany(
+        { _id: { $in: unreadIds } },
+        { status: "read" }
+      );
+
+      const io = req.app.get("io");
+      const onlineUsers = req.app.get("onlineUsers");
+      const friendSocketId = onlineUsers?.get(friendId.toString());
+      if (friendSocketId && io) {
+        io.to(friendSocketId).emit("message-read", {
+          messageIds: unreadIds.map(id => id.toString()),
+          byUserId: currentUserId
+        });
+      }
     }
 
     const messages = await FriendMessage.find({

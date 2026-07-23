@@ -271,6 +271,14 @@ export default function Friends() {
 
   const EMOJIS = ["😊", "👍", "👋", "📖", "✍️", "🧠", "⚡", "🚀", "💻", "🎓", "🧪", "📚", "🏆", "🔥", "🎉", "👏", "💡", "😅"];
 
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
+    if (user?.id && socketRef.current?.connected) {
+      socketRef.current.emit("register-user", user.id);
+    }
+  }, [user?.id]);
+
   const safeSaveChatMessages = (email: string, updatedMessages: Record<string, Message[]>) => {
     try {
       localStorage.setItem(`lms_chat_messages_${email}`, JSON.stringify(updatedMessages));
@@ -335,9 +343,15 @@ export default function Friends() {
 
     socket.on("connect", () => {
       console.log("🔌 [SOCKET] Connected successfully! Socket ID:", socket.id);
-      if (user?.id) {
-        socket.emit("register-user", user.id);
+      const currentUid = userRef.current?.id;
+      if (currentUid) {
+        socket.emit("register-user", currentUid);
       }
+    });
+
+    socket.on("online-users-list", (onlineUserIds: string[]) => {
+      const onlineSet = new Set(onlineUserIds);
+      setFriends(prev => prev.map(friend => ({ ...friend, online: onlineSet.has(friend.id) })));
     });
 
     socket.on("user-status-change", ({ userId, online }: { userId: string; online: boolean }) => {
@@ -352,7 +366,7 @@ export default function Friends() {
       const newMsg: Message = {
         id: id || Math.random().toString(36).substring(7),
         senderId: from,
-        receiverId: user?.id || "",
+        receiverId: userRef.current?.id || "",
         content,
         timestamp: timestamp || new Date().toISOString(),
         status: "sent",  // Receiver's copy starts at "sent"; sender gets status upgrades separately
@@ -364,15 +378,19 @@ export default function Friends() {
         const isDuplicate = list.some(m => m.id === newMsg.id || (m.content === newMsg.content && Math.abs(new Date(m.timestamp).getTime() - new Date(newMsg.timestamp).getTime()) < 5000));
         if (isDuplicate) return prev;
         const updated = { ...prev, [from]: [...list, newMsg] };
-        if (user?.email) safeSaveChatMessages(user.email, updated);
+        if (userRef.current?.email) safeSaveChatMessages(userRef.current.email, updated);
         return updated;
       });
 
-      // Increment direct unread count if friend chat is not currently selected
-      setDirectUnread(prev => {
-        if (selectedFriend?.id === from) return prev;
-        return { ...prev, [from]: (prev[from] || 0) + 1 };
-      });
+      // If receiver currently has this friend's chat open, mark read immediately (triggers blue tick for sender)
+      if (selectedFriendIdRef.current === from) {
+        if (socketRef.current?.connected) {
+          socketRef.current.emit("mark-messages-read", { fromUserId: from });
+        }
+      } else {
+        // Increment direct unread count if friend chat is not currently selected
+        setDirectUnread(prev => ({ ...prev, [from]: (prev[from] || 0) + 1 }));
+      }
 
       playNotificationSound();
     });
