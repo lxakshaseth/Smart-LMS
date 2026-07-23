@@ -264,6 +264,8 @@ const io = new Server(server, {
 
 // Real-time user session status & call routing cache
 const onlineUsers = new Map(); // userId -> socketId
+app.set("onlineUsers", onlineUsers);
+app.set("io", io);
 
 io.on("connection", (socket) => {
   console.log("⚡ Real-time client connected:", socket.id);
@@ -286,6 +288,10 @@ io.on("connection", (socket) => {
         console.error("Error joining group rooms:", gErr);
       }
 
+      // Send the complete list of currently online users back to the registering user
+      socket.emit("online-users-list", Array.from(onlineUsers.keys()));
+
+      // Broadcast user online status change to everyone else
       io.emit("user-status-change", { userId: uid, online: true });
     }
   });
@@ -669,13 +675,18 @@ io.on("connection", (socket) => {
       );
 
       // Tell the original sender their messages have been read (blue ticks)
+      const messageIdStrings = ids.map(id => id.toString());
       const senderSocketId = onlineUsers.get(originalSenderId);
       if (senderSocketId) {
         io.to(senderSocketId).emit("message-read", {
-          messageIds: ids.map(id => id.toString()),
+          messageIds: messageIdStrings,
           byUserId: readerId
         });
       }
+      socket.emit("message-read", {
+        messageIds: messageIdStrings,
+        byUserId: readerId
+      });
 
       console.log(`👁️ [SOCKET] ${readerId} read ${ids.length} messages from ${originalSenderId}`);
     } catch (err) {
