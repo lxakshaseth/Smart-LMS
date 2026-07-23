@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart-LMS: Developer Onboarding & Complete System Architecture Blueprint</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 15mm 15mm 15mm 15mm;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #0f172a;
+      line-height: 1.5;
+      font-size: 11px;
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+    }
+    .cover-page {
+      background: linear-gradient(135deg, #0284c7 0%, #1e1b4b 50%, #0f172a 100%);
+      color: #ffffff;
+      padding: 36px 30px;
+      border-radius: 10px;
+      margin-bottom: 24px;
+    }
+    .cover-page h1 {
+      margin: 0 0 8px 0;
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .cover-page p {
+      margin: 0 0 12px 0;
+      font-size: 13px;
+      color: #bae6fd;
+    }
+    .meta-badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    .toc-box {
+      background-color: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 22px;
+      page-break-inside: avoid;
+    }
+    .toc-title {
+      font-weight: 800;
+      font-size: 13px;
+      color: #0f172a;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .toc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      font-size: 10.5px;
+    }
+    .toc-item {
+      color: #0284c7;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    h2 {
+      font-size: 15px;
+      color: #0f172a;
+      border-bottom: 2px solid #0284c7;
+      padding-bottom: 4px;
+      margin-top: 22px;
+      margin-bottom: 10px;
+      font-weight: 800;
+      page-break-after: avoid;
+    }
+    h3 {
+      font-size: 13px;
+      color: #1e293b;
+      margin-top: 16px;
+      margin-bottom: 6px;
+      font-weight: 700;
+      page-break-after: avoid;
+    }
+    h4 {
+      font-size: 11.5px;
+      color: #334155;
+      margin-top: 12px;
+      margin-bottom: 4px;
+      font-weight: 600;
+      page-break-after: avoid;
+    }
+    p {
+      margin-top: 0;
+      margin-bottom: 8px;
+    }
+    ul, ol {
+      margin-top: 0;
+      margin-bottom: 8px;
+      padding-left: 18px;
+    }
+    li {
+      margin-bottom: 3px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+      font-size: 10px;
+      page-break-inside: avoid;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 5px 7px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background-color: #f1f5f9;
+      color: #0f172a;
+      font-weight: 700;
+    }
+    tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+      background-color: #f1f5f9;
+      color: #0369a1;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: 10px;
+    }
+    pre {
+      background-color: #0f172a;
+      color: #f8fafc;
+      padding: 10px 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+      font-size: 9.5px;
+      line-height: 1.4;
+      margin: 10px 0;
+      page-break-inside: avoid;
+    }
+    pre code {
+      background-color: transparent;
+      color: inherit;
+      padding: 0;
+    }
+    .callout {
+      background-color: #f0f9ff;
+      border-left: 4px solid #0284c7;
+      padding: 8px 12px;
+      border-radius: 0 6px 6px 0;
+      margin: 10px 0;
+      page-break-inside: avoid;
+    }
+    .callout-title {
+      font-weight: 700;
+      color: #0369a1;
+      margin-bottom: 2px;
+      font-size: 11px;
+    }
+    .formula-box {
+      background-color: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-left: 4px solid #4f46e5;
+      padding: 8px 12px;
+      border-radius: 4px;
+      margin: 8px 0;
+      font-family: serif;
+      font-size: 11.5px;
+      page-break-inside: avoid;
+    }
+    .footer {
+      margin-top: 24px;
+      border-top: 1px solid #cbd5e1;
+      padding-top: 8px;
+      text-align: center;
+      font-size: 9px;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="cover-page">
+    <h1>Smart-LMS Developer Onboarding Manual</h1>
+    <p>Complete System Architecture Blueprint, Data Flow Engine, API Catalog & Teammate Guide</p>
+    <div class="meta-badge">Official Teammate Guide &bull; Version 1.0.0 &bull; Production Ready</div>
+  </div>
+
+  <div class="toc-box">
+    <div class="toc-title">Table of Contents</div>
+    <div class="toc-grid">
+      <div class="toc-item">1. Teammate Quickstart & Local Setup</div>
+      <div class="toc-item">2. System Architecture & End-to-End Data Flow</div>
+      <div class="toc-item">3. Frontend Component & State Blueprint</div>
+      <div class="toc-item">4. Backend Controller & Service Reference</div>
+      <div class="toc-item">5. Socket.IO & WebRTC Event Specification</div>
+      <div class="toc-item">6. Database Schema Catalog (14 Mongoose Models)</div>
+      <div class="toc-item">7. Complete API Endpoint Reference (21 Routes)</div>
+      <div class="toc-item">8. Mathematical Algorithms & Formulas</div>
+      <div class="toc-item">9. Deployment & Production Hardening Guide</div>
+      <div class="toc-item">10. Common Pitfalls & Troubleshooting FAQ</div>
+    </div>
+  </div>
+
+  <h2>1. Teammate Quickstart & Local Environment Setup</h2>
+
+  <h3>1.1 Prerequisites</h3>
+  <ul>
+    <li><strong>Node.js</strong>: Version 18.x or 20.x installed</li>
+    <li><strong>MongoDB</strong>: Local MongoDB instance running on <code>mongodb://localhost:27017</code> OR MongoDB Atlas URI</li>
+    <li><strong>Package Managers</strong>: <code>npm</code> or <code>pnpm</code></li>
+  </ul>
+
+  <h3>1.2 Backend Setup (<code>/backend</code>)</h3>
+  <pre><code># Step 1: Navigate to backend directory
+cd backend
+
+# Step 2: Install dependencies
+npm install
+
+# Step 3: Create .env file based on template
+cp .env.example .env
+
+# Step 4: Configure environment variables in .env
+PORT=5000
+MONGO_URI=mongodb://localhost:27017/smart-lms
+JWT_SECRET=your_super_secret_jwt_key_here
+GROQ_API_KEY=gsk_your_groq_api_key_here
+GROQ_MODEL=llama-3.1-8b-instant
+GEMINI_API_KEY=your_gemini_api_key_here
+YOUTUBE_API_KEY=your_youtube_v3_api_key_here
+CLIENT_URL=http://localhost:5173
+
+# Step 5: Start backend server in hot-reload development mode
+npm run dev</code></pre>
+
+  <h3>1.3 Frontend Setup (<code>/frontend</code>)</h3>
+  <pre><code># Step 1: Open a new terminal and navigate to frontend directory
+cd frontend
+
+# Step 2: Install dependencies
+pnpm install  # or npm install
+
+# Step 3: Create .env file
+cp .env.example .env
+
+# Step 4: Configure VITE environment variables
+VITE_API_BASE_URL=http://localhost:5000/api
+VITE_SOCKET_URL=http://localhost:5000
+
+# Step 5: Start Vite development server
+npm run dev</code></pre>
+  <p>The application will open on <code>http://localhost:5173</code>.</p>
+
+  <h2>2. System Architecture & End-to-End Data Flow</h2>
+
+  <h3>2.1 Complete Request-Response Lifecycle</h3>
+  <div class="callout">
+    <div class="callout-title">Trace of a Student Action (e.g. Asking AI Tutor)</div>
+    <ol>
+      <li><strong>User Input</strong>: Student submits question in <code>AITutor.tsx</code> UI.</li>
+      <li><strong>Frontend API Client</strong>: <code>src/app/lib/api.ts</code> intercepts request, injects <code>Authorization: Bearer <jwt></code> from <code>localStorage</code>, and dispatches POST request to <code>/api/ai/solve</code>.</li>
+      <li><strong>Security Gateway</strong>:
+        <ul>
+          <li><code>app.set("trust proxy", 1)</code> enables accurate load-balancer client IP matching.</li>
+          <li><code>corsOptions</code> validates request origin against allowed domain whitelist.</li>
+          <li><code>apiLimiter</code> checks rate-limit counter (prevents spam/DDoS).</li>
+          <li><code>auth.middleware.js</code> decodes JWT, verifies signature, fetches user document, and sets <code>req.user</code>.</li>
+        </ul>
+      </li>
+      <li><strong>Controller Layer</strong>: <code>ai.controller.js</code> validates payload, constructs system prompt, and calls <code>ai.service.js</code>.</li>
+      <li><strong>Service & LLM Engine</strong>: <code>safeGroqCall()</code> sends payload to Groq LLaMA 3.1 API with 30s <code>Promise.race()</code> timeout.</li>
+      <li><strong>Database & State Mutation</strong>: Controller calculates XP earned, updates user streak, appends today's <code>weeklyActivity</code>, and updates subject mastery formula in MongoDB.</li>
+      <li><strong>Real-time Broadcast (Optional)</strong>: If social/group feature, <code>io.to(room).emit()</code> broadcasts update over Socket.IO.</li>
+      <li><strong>Client Render</strong>: <code>AITutor.tsx</code> parses Markdown via <code>renderMarkdown.tsx</code> and renders solution.</li>
+    </ol>
+  </div>
+
+  <h2>3. Frontend Component & State Blueprint</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Component Name</th>
+        <th>File Route Path</th>
+        <th>State & Features Managed</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>AITutor.tsx</code></td>
+        <td><code>/ai-tutor</code></td>
+        <td>Chat messages list, current prompt input, active tutor mode (step-by-step, hint, full solution), streaming code highlight renderer.</td>
+      </tr>
+      <tr>
+        <td><code>StudyMode.tsx</code> & <code>UploadMaterial.tsx</code></td>
+        <td><code>/study</code>, <code>/upload</code></td>
+        <td>File dropzone, Tesseract OCR progress spinner, extracted text viewer, AI summary card, interactive flashcard carousel.</td>
+      </tr>
+      <tr>
+        <td><code>Quiz.tsx</code></td>
+        <td><code>/quiz</code></td>
+        <td>Question topic selector, countdown timer, active question index, chosen answers map, final score modal with confetti animation.</td>
+      </tr>
+      <tr>
+        <td><code>Planner.tsx</code> & <code>AddTaskPage.tsx</code></td>
+        <td><code>/planner</code></td>
+        <td>Weekly schedule view, task completion checkbox triggers, risk score badge (High/Medium/Low), AI Weekly Strategy Review drawer.</td>
+      </tr>
+      <tr>
+        <td><code>Friends.tsx</code></td>
+        <td><code>/friends</code></td>
+        <td>Friends list, friend requests, live online status badge, direct message history, audio voice message recorder/player, WebRTC video call modal.</td>
+      </tr>
+      <tr>
+        <td><code>CriticalThinking.tsx</code></td>
+        <td><code>/critical</code></td>
+        <td>Brain game puzzles (Logic/Math), streak counter, XP/Level progress bar, unlocked badges grid ("Focus Beast", "Streak Monster").</td>
+      </tr>
+      <tr>
+        <td><code>YouTube.tsx</code></td>
+        <td><code>/youtube</code></td>
+        <td>Search bar, video cards grid, video player modal, saved videos list, watch history, AI summary generator drawer.</td>
+      </tr>
+      <tr>
+        <td><code>Analytics.tsx</code></td>
+        <td><code>/analytics</code></td>
+        <td>Recharts bar & line charts (questions answered, notes created, study hours), risk score gauge, readiness radar chart.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>4. Backend Controller & Service Reference</h2>
+
+  <h3>4.1 Services Overview</h3>
+  <ul>
+    <li><code>ai.service.js</code>: Groq OpenAI client setup, <code>cleanAIResponse()</code> regex sanitizer, <code>generateStructuredResponse()</code>, weekly review prompt generator.</li>
+    <li><code>brainAI.service.js</code>: Logic and math brain puzzle generators, safe Groq call wrappers, game outcome generator.</li>
+    <li><code>analytics.service.js</code>: Risk calculation engine, 5-sample performance trend detector, weekly completion impact calculator, confidence engine.</li>
+    <li><code>youtube.service.js</code>: Official YouTube Data API v3 search with <code>yt-search</code> fallback, ISO 8601 duration regex parser, view count formatter.</li>
+  </ul>
+
+  <h2>5. Real-Time Socket.IO & WebRTC Event Specification Catalog</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Event Name</th>
+        <th>Direction</th>
+        <th>Payload Parameters</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>register-user</code></td>
+        <td>Client &rarr; Server</td>
+        <td><code>userId: string</code></td>
+        <td>Registers user socket in <code>onlineUsers</code> map & joins <code>user_<id></code> room.</td>
+      </tr>
+      <tr>
+        <td><code>online-users-list</code></td>
+        <td>Server &rarr; Client</td>
+        <td><code>userIds: string[]</code></td>
+        <td>Emits list of all currently online users to newly registered client.</td>
+      </tr>
+      <tr>
+        <td><code>user-status-change</code></td>
+        <td>Server &rarr; Client</td>
+        <td><code>{ userId, online: boolean }</code></td>
+        <td>Broadcasts online/offline status change to all connected clients.</td>
+      </tr>
+      <tr>
+        <td><code>create-group</code></td>
+        <td>Client &rarr; Server</td>
+        <td><code>{ groupId, memberIds }</code></td>
+        <td>Notifies group members and auto-joins their sockets to <code>group_<id></code> room.</td>
+      </tr>
+      <tr>
+        <td><code>group-message</code></td>
+        <td>Client &rarr; Server</td>
+        <td><code>{ groupId, content, attachmentType, fileUrl }</code></td>
+        <td>Saves message to DB, checks online delivery, emits to group room.</td>
+      </tr>
+      <tr>
+        <td><code>typing-group</code></td>
+        <td>Client &rarr; Server</td>
+        <td><code>{ groupId, userId, userName }</code></td>
+        <td>Broadcasts typing indicator to other group members.</td>
+      </tr>
+      <tr>
+        <td><code>call-user</code></td>
+        <td>Client &rarr; Server</td>
+        <td><code>{ userToCall, signalData, from }</code></td>
+        <td>Initiates WebRTC peer-to-peer audio/video call.</td>
+      </tr>
+      <tr>
+        <td><code>answer-call</code></td>
+        <td>Client &rarr; Server</td>
+        <td><code>{ to, signalData }</code></td>
+        <td>Completes WebRTC offer/answer handshake.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>6. Complete Database Schema Catalog (14 Mongoose Models)</h2>
+
+  <h3>6.1 User Model (<code>src/models/user.model.js</code>)</h3>
+  <pre><code>const userSchema = new mongoose.Schema({
+  name: { type: String, trim: true },
+  username: { type: String, trim: true },
+  email: { type: String, required: true, unique: true, lowercase: true },
+  password: { type: String, required: true },
+  exam: { type: String, default: "" },
+  profileImage: { type: String, default: null },
+  darkMode: { type: Boolean, default: false },
+  
+  // Analytics & Metrics
+  totalQuestions: { type: Number, default: 0 },
+  totalNotes: { type: Number, default: 0 },
+  totalQuizzes: { type: Number, default: 0 },
+  totalStudyHours: { type: Number, default: 0 },
+  accuracy: { type: Number, default: 0 },
+  readiness: { type: Number, default: 0 },
+  risk: { type: String, default: "Low" },
+  weakSubject: { type: String, default: "Not Available" },
+  strongSubject: { type: String, default: "Not Available" },
+  
+  // Gamification
+  xp: { type: Number, default: 0 },
+  level: { type: Number, default: 1 },
+  rank: { type: String, default: "Beginner" },
+  streak: { type: Number, default: 0 },
+  lastActiveDate: { type: String, default: null },
+  
+  dailyMission: { type: dailyMissionSchema, default: null },
+  weeklyActivity: { type: [weeklyActivitySchema], default: [] },
+  subjectStats: { type: [subjectStatsSchema], default: [] }
+}, { timestamps: true });
+
+// Pre-save hook: auto-generates username & updates level/rank
+userSchema.pre("save", function() {
+  this.level = Math.floor(this.xp / 100) + 1;
+  if (this.xp >= 2000) this.rank = "Grandmaster";
+  else if (this.xp >= 1000) this.rank = "Master";
+  else if (this.xp >= 500) this.rank = "Advanced";
+  else if (this.xp >= 200) this.rank = "Intermediate";
+  else this.rank = "Beginner";
+});</code></pre>
+
+  <h2>7. Complete API Endpoint Reference Matrix</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Subsystem</th>
+        <th>Method & Path</th>
+        <th>Auth</th>
+        <th>Request Body Payload</th>
+        <th>Response Payload Highlights</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Auth</td>
+        <td><code>POST /api/auth/register</code></td>
+        <td>No</td>
+        <td><code>{ name, email, password, exam }</code></td>
+        <td><code>{ success: true, token: "...", user: {...} }</code></td>
+      </tr>
+      <tr>
+        <td>Auth</td>
+        <td><code>POST /api/auth/login</code></td>
+        <td>No</td>
+        <td><code>{ email, password }</code></td>
+        <td><code>{ success: true, token: "...", user: {...} }</code></td>
+      </tr>
+      <tr>
+        <td>AI</td>
+        <td><code>POST /api/ai/solve</code></td>
+        <td>Yes</td>
+        <td><code>{ question, topic }</code></td>
+        <td><code>{ success: true, answer: "# Markdown Solution..." }</code></td>
+      </tr>
+      <tr>
+        <td>Upload</td>
+        <td><code>POST /api/upload</code></td>
+        <td>Yes</td>
+        <td><code>file: Binary File</code></td>
+        <td><code>{ success: true, fileUrl: "http://...", fileName: "..." }</code></td>
+      </tr>
+      <tr>
+        <td>OCR</td>
+        <td><code>POST /api/ocr/extract</code></td>
+        <td>Yes</td>
+        <td><code>{ fileUrl }</code></td>
+        <td><code>{ success: true, text: "Extracted Plaintext..." }</code></td>
+      </tr>
+      <tr>
+        <td>MockTest</td>
+        <td><code>POST /api/mocktest/generate</code></td>
+        <td>Yes</td>
+        <td><code>{ subject, questionCount }</code></td>
+        <td><code>{ success: true, questions: [ { q, options, id } ] }</code></td>
+      </tr>
+      <tr>
+        <td>Planner</td>
+        <td><code>GET /api/planner/my-plan</code></td>
+        <td>Yes</td>
+        <td>None</td>
+        <td><code>{ success: true, planner: { riskScore, weeklyPlan } }</code></td>
+      </tr>
+      <tr>
+        <td>Brain AI</td>
+        <td><code>POST /api/brain/submit-game</code></td>
+        <td>Yes</td>
+        <td><code>{ isCorrect, xpEarned }</code></td>
+        <td><code>{ success: true, xp, level, intelligenceScore }</code></td>
+      </tr>
+      <tr>
+        <td>Groups</td>
+        <td><code>POST /api/groups/create</code></td>
+        <td>Yes</td>
+        <td><code>{ name, memberIds }</code></td>
+        <td><code>{ success: true, group: { _id, name, members } }</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>8. Mathematical Algorithms Reference Guide</h2>
+
+  <div class="formula-box">
+    <strong>1. Risk Score Engine:</strong><br>
+    RiskScore = clamp((100 &minus; Accuracy) &times; 0.4 + (100 &minus; Completion) &times; 0.3 + StreakImpact &times; 0.3)
+  </div>
+
+  <div class="formula-box">
+    <strong>2. Subject Mastery Formula:</strong><br>
+    Mastery = min(100, Questions &times; 5 + Notes &times; 7 + Quizzes &times; 10)
+  </div>
+
+  <div class="formula-box">
+    <strong>3. Level & Intelligence Formulas:</strong><br>
+    Level = &lfloor; XP / 100 &rfloor; + 1 &emsp;|&emsp; IntelligenceScore = 100 + &lfloor; XP &times; 0.8 &rfloor;
+  </div>
+
+  <h2>9. Common Troubleshooting FAQ for Teammates</h2>
+
+  <div class="callout">
+    <div class="callout-title">Q: Why do I get ERR_ERL_UNEXPECTED_X_FORWARDED_FOR error on server start?</div>
+    This occurs when Express is behind a reverse proxy (like Render or Nginx) and <code>express-rate-limit</code> receives proxy headers without proxy trust enabled. Ensure <code>app.set("trust proxy", 1);</code> remains active in <code>server.js</code>.
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">Q: Why are CORS preflight OPTIONS failing from local frontend?</div>
+    Make sure your local frontend URL (e.g. <code>http://localhost:5173</code>) is listed in <code>allowedOrigins</code> inside <code>server.js</code> or added to <code>CLIENT_URL</code> in your <code>.env</code> file.
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">Q: Tesseract OCR is taking long or failing to initialize?</div>
+    Ensure <code>eng.traineddata</code> is present in the root/backend folder or accessible via internet so Tesseract.js can load the English OCR language model worker thread.
+  </div>
+
+  <div class="footer">
+    Smart-LMS Official Teammate Manual & System Blueprint &copy; 2026. Antigravity AI Assistant.
+  </div>
+
+</body>
+</html>

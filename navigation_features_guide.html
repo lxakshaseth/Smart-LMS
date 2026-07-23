@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart-LMS: Comprehensive Navigation Bar & Interface Feature Guide</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 15mm 15mm 15mm 15mm;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #0f172a;
+      line-height: 1.55;
+      font-size: 11px;
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+    }
+    .header-banner {
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #0f172a 100%);
+      color: #ffffff;
+      padding: 28px 24px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .header-banner h1 {
+      margin: 0 0 6px 0;
+      font-size: 23px;
+      font-weight: 800;
+      letter-spacing: -0.4px;
+    }
+    .header-banner p {
+      margin: 0;
+      font-size: 13px;
+      color: #c7d2fe;
+    }
+    .meta-badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+      margin-top: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    h2 {
+      font-size: 15px;
+      color: #0f172a;
+      border-bottom: 2px solid #6366f1;
+      padding-bottom: 4px;
+      margin-top: 22px;
+      margin-bottom: 10px;
+      font-weight: 800;
+      page-break-after: avoid;
+    }
+    h3 {
+      font-size: 13px;
+      color: #1e293b;
+      margin-top: 16px;
+      margin-bottom: 6px;
+      font-weight: 700;
+      page-break-after: avoid;
+    }
+    .nav-card {
+      background-color: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-left: 4px solid #6366f1;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      page-break-inside: avoid;
+    }
+    .nav-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .nav-card-title {
+      font-weight: 800;
+      font-size: 13px;
+      color: #1e1b4b;
+    }
+    .nav-card-path {
+      font-family: monospace;
+      font-size: 10px;
+      background: #e0e7ff;
+      color: #3730a3;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .nav-card-desc {
+      color: #334155;
+      font-size: 11px;
+      margin-bottom: 6px;
+    }
+    .nav-card-details {
+      font-size: 10px;
+      color: #64748b;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 10px;
+      page-break-inside: avoid;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background-color: #f1f5f9;
+      color: #0f172a;
+      font-weight: 700;
+    }
+    tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+      background-color: #f1f5f9;
+      color: #4f46e5;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: 10px;
+    }
+    .callout {
+      background-color: #faf5ff;
+      border-left: 4px solid #9333ea;
+      padding: 8px 12px;
+      border-radius: 0 6px 6px 0;
+      margin: 10px 0;
+      page-break-inside: avoid;
+    }
+    .callout-title {
+      font-weight: 700;
+      color: #6b21a8;
+      margin-bottom: 2px;
+      font-size: 11px;
+    }
+    .footer {
+      margin-top: 24px;
+      border-top: 1px solid #cbd5e1;
+      padding-top: 8px;
+      text-align: center;
+      font-size: 9px;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header-banner">
+    <h1>Smart-LMS Navigation Bar & Interface Feature Manual</h1>
+    <p>Detailed User & Developer Specification for All 14 Sidebar Links, Top Navigation Controls & UI Actions</p>
+    <div class="meta-badge">Complete Interface Blueprint &bull; Version 1.0.0</div>
+  </div>
+
+  <h2>1. Overview of the Layout Architecture</h2>
+  <p>The Smart-LMS user interface employs a responsive dual-navigation shell consisting of a collapsible <strong>Sidebar Navigation Bar</strong> on the left and a sticky <strong>Top Navbar</strong> on the top.</p>
+  <ul>
+    <li><strong>Sidebar Component (<code>Sidebar.tsx</code>)</strong>: Manages primary navigation routing across all 14 core platform modules. Supports collapsible states (256px expanded $\leftrightarrow$ 68px collapsed), animated active indicators, and mobile drawer transitions.</li>
+    <li><strong>Navbar Component (<code>Navbar.tsx</code>)</strong>: Manages global search queries, theme switching (Light/Dark mode), notification triggers, user profile summaries, target exam selection, and authentication logout flows.</li>
+  </ul>
+
+  <h2>2. Detailed Explanation of All 14 Sidebar Navigation Links</h2>
+
+  <div class="nav-card">
+    <div class="nav-card-header">
+      <span class="nav-card-title">1. 🏠 Dashboard</span>
+      <span class="nav-card-path">Path: /</span>
+    </div>
+    <div class="nav-card-desc">
+      The central command center for the student. Provides an instant visual summary of daily study missions, current study streak, overall accuracy, readiness score, weak subject alerts, and quick action shortcuts.
+    </div>
+    <div class="nav-card-details">
+      <strong>Icon</strong>: <code>LayoutDashboard</code> &bull; <strong>Backend Service</strong>: <code>/api/dashboard</code> &bull; <strong>Key Utility</strong>: Daily target tracking & streak monitoring.
+    </div>
+  </div>
+
+  <div class="nav-card">
+    <div class="nav-card-header">
+      <span class="nav-card-title">2. 🤖 AI Mentor</span>
+      <span class="nav-card-path">Path: /ai-tutor</span>
+    </div>
+    <div class="nav-card-desc">
+      An interactive 24/7 AI-powered academic tutor. Allows students to type or paste complex questions, select explanation depth (step-by-step, hint, or complete solution), and receive formatted markdown answers with code syntax highlighting.
+    </div>
+    <div class="nav-card-details">
+      <strong>Icon</strong>: <code>Bot</code> &bull; <strong>Backend Service</strong>: <code>/api/ai/solve</code> (Groq LLaMA 3.1 LLM) &bull; <strong>Key Utility</strong>: On-demand problem solving & instant clarification.
+    </div>
+  </div>
+
+  <div class="nav-card">
+    <div class="nav-card-header">
+      <span class="nav-card-title">3. 📖 Learning Hub</span>
+      <span class="nav-card-path">Path: /study</span>
+    </div>
+    <div class="nav-card-desc">
+      An interactive document study workspace. Enables users to select uploaded study materials or notes, process text, view automated summaries, and practice with AI-generated flashcard carousels.
+    </div>
+    <div class="nav-card-details">
+      <strong>Icon</strong>: <code>BookOpen</code> &bull; <strong>Backend Service</strong>: <code>/api/notes</code> & <code>/api/books</code> &bull; <strong>Key Utility</strong>: Deep reading, flashcard revision, and active recall.
+    </div>
+  </div>
+
+  <div class="nav-card">
+    <div class="nav-card-header">
+      <span class="nav-card-title">4. 📝 Practice Arena</span>
+      <span class="nav-card-path">Path: /quiz</span>
+    </div>
+    <div class="nav-card-desc">
+      The testing & assessment engine. Generates customized multiple-choice practice quizzes based on chosen subjects, difficulty levels, or custom text. Features countdown exam timers and detailed answer explanation modals.
+    </div>
+    <div class="nav-card-details">
+      <strong>Icon</strong>: <code>ClipboardList</code> &bull; <strong>Backend Service</strong>: <code>/api/mocktest</code> &bull; <strong>Key Utility</strong>: Exam preparation, speed testing, and score accuracy tracking.
+    </div>
+  </div>
+
+  <div class="nav-card">
+    <div class="nav-card-header">
+      <span class="nav-card-title">5. 📅 Study Planner</span>
+      <span class="nav-card-path">Path: /planner</span>
+    </div>
+    <div class="nav-card-desc">
+      An adaptive academic schedule planner. Automatically balances daily study tasks based on upcoming exam dates, current academic risk scores, and weak subject areas. Includes AI Weekly Strategy Reviews.
+    </div>
+    <div class="nav-card-details">
+      <strong>Icon</strong>: <code>Calendar</code> &bull; <strong>Backend Service</strong>: <code>/api/planner</code> &bull; <strong>Key Utility</strong>: Smart schedule creation & Risk Score reduction.
+    </div>
+  </div>
+
+  <div class="nav-card">
+    <div class="nav-card-header">
+      <span class="nav-card-title">6. 📊 Progress</span>
+      <span class="nav-card-path">Path: /analytics</span>
+    </div>
+    <div class="nav-card-desc">
+      A comprehensive data visualization dashboard powered by Recharts. Displays weekly study hours, questions attempted, notes created, subject mastery radar charts, and trend metrics.
+    </div>
+    <div class="nav-card-details">
+      <strong>Icon</strong>: <code>BarChart3</code> &bull; <strong>Backend Service</strong>: <code>/api/analytics</code> &bull; <strong>Key Utility</strong>: Visual performance auditing & readiness evaluation.
+    </div>
+  </div>
+
+  <div class="nav-card">
+    <div class="nav-card-header">
+      <span class="nav-card-title">7. 📚 Library</span>
+      <span class="nav-card-path">Path: /books</span>
+    </div>
+    <div class="nav-card-desc">
+      A digital repository of reference books, textbooks, and syllabus guides categorized by subject and target exam (JEE, NEET, UPSC, GATE, etc.).
+    </div>
+    <div class="nav-card-details">
+      <strong>Icon</strong>: <code>Library</code> &bull; <strong>Backend Service</strong>: <code>/api/books</code> &bull; <strong>Key Utility</strong>: Coursework reference & digital book access.
+    </div>
+  </div>
+
+  <div class="nav-card">
+    <div class="nav-card-header">
+      <span class="nav-card-title">8. 🎥 Learning Videos</span>
+      <span class="nav-card-path">Path: /youtube</span>
+    </div>
+    <div class="nav-card-desc">
+      An educational video discovery and summarization module. Allows students to search YouTube educational videos, view video duration/views, save favorites, and generate one-click AI video summaries.
+    </div>
+    <div class="nav-card-details">
+      <strong>Icon</strong>: <code>Youtube</code> &bull; <strong>Backend Service</strong>: <code>/api/youtube</code> &bull; <strong>Key Utility</strong>: Visual video learning & AI summary extraction.
+    </div>
+  </div>
+
+  <div class="nav-card">
+    <div class="nav-card-header">
+      <span class="nav-card-title">9. 📄 Notes</span>
+      <span class="nav-card-path">Path: /notes</span>
+    </div>
+    <div class="nav-card-desc">
+      A full-featured digital notebook for creating, editing, categorizing, and searching study notes. Supports Markdown formatting, tagging, and AI note refinement.
+    </div>
+    <div class="nav-card-details">
+      <strong>Icon</strong>: <code>FileText</code> &bull; <strong>Backend Service</strong>: <code>/api/notes</code> &bull; <strong>Key Utility</strong>: Personal knowledge management & revision notes.
+    </div>
+  </div>
+
+  <div class="nav-card">
+    <div class="nav-card-header">
+      <span class="nav-card-title">10. ⏱️ Focus Timer</span>
+      <span class="nav-card-path">Path: /focus</span>
+    </div>
+    <div class="nav-card-desc">
+      A dedicated Pomodoro timer built to maximize study concentration. Features customizable work/break cycles, ambient focus audio, study session logs, and streak counters.
+    </div>
+    <div class="nav-card-details">
+      <strong>Icon</strong>: <code>Timer</code> &bull; <strong>Backend Service</strong>: Local Component State + User XP &bull; <strong>Key Utility</strong>: Time management & deep work enforcement.
+    </div>
+  </div>
+
+  <div class="nav-card">
+    <div class="nav-card-header">
+      <span class="nav-card-title">11. 🧠 Critical Thinking</span>
+      <span class="nav-card-path">Path: /critical</span>
+    </div>
+    <div class="nav-card-desc">
+      A gamified cognitive brain-training zone featuring logical reasoning puzzles, math brain games, and strategic scenarios. Tracks Intelligence Scores and awards badges like "Focus Beast".
+    </div>
+    <div class="nav-card-details">
+      <strong>Icon</strong>: <code>Brain</code> &bull; <strong>Backend Service</strong>: <code>/api/brain</code> &bull; <strong>Key Utility</strong>: Cognitive training & XP/Level ranking.
+    </div>
+  </div>
+
+  <div class="nav-card">
+    <div class="nav-card-header">
+      <span class="nav-card-title">12. 📤 Upload Material</span>
+      <span class="nav-card-path">Path: /upload</span>
+    </div>
+    <div class="nav-card-desc">
+      The file ingestion portal. Enables drag-and-drop file uploading for PDFs, handwritten note photos, and study slides. Automatically triggers Tesseract OCR text extraction.
+    </div>
+    <div class="nav-card-details">
+      <strong>Icon</strong>: <code>Upload</code> &bull; <strong>Backend Service</strong>: <code>/api/upload</code> & <code>/api/ocr</code> &bull; <strong>Key Utility</strong>: Physical-to-digital document processing.
+    </div>
+  </div>
+
+  <div class="nav-card">
+    <div class="nav-card-header">
+      <span class="nav-card-title">13. 👥 Friends</span>
+      <span class="nav-card-path">Path: /friends</span>
+    </div>
+    <div class="nav-card-desc">
+      The social collaboration hub. Features live friend lists, real-time 1-on-1 direct messaging, voice notes, study group chat rooms, and peer-to-peer WebRTC video study calls.
+    </div>
+    <div class="nav-card-details">
+      <strong>Icon</strong>: <code>Users</code> &bull; <strong>Backend Service</strong>: <code>/api/friends</code>, <code>/api/groups</code> & Socket.IO &bull; <strong>Key Utility</strong>: Peer study, real-time chat, and video calls.
+    </div>
+  </div>
+
+  <div class="nav-card">
+    <div class="nav-card-header">
+      <span class="nav-card-title">14. ⚙️ Settings</span>
+      <span class="nav-card-path">Path: /settings</span>
+    </div>
+    <div class="nav-card-desc">
+      Account configuration center. Allows students to edit personal details, select target exam focus (JEE, NEET, UPSC, etc.), customize profile avatars, and toggle dark mode.
+    </div>
+    <div class="nav-card-details">
+      <strong>Icon</strong>: <code>Settings</code> &bull; <strong>Backend Service</strong>: <code>/api/profile</code> &bull; <strong>Key Utility</strong>: User profile & preference management.
+    </div>
+  </div>
+
+  <h2>3. Top Navbar Controls & Interactive Utilities</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Navbar Utility</th>
+        <th>Visual Element</th>
+        <th>Functional Mechanism & Code Logic</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Global Search Bar</strong></td>
+        <td><code>&lt;Search /&gt;</code> input field</td>
+        <td>Typing a search term automatically routes the user to <code>/youtube?q=&lt;query&gt;</code>, allowing seamless cross-platform video query dispatch. Automatically clears when navigating to non-video routes.</td>
+      </tr>
+      <tr>
+        <td><strong>Theme Toggle Engine</strong></td>
+        <td><code>&lt;Moon /&gt;</code> / <code>&lt;Sun /&gt;</code> button</td>
+        <td>Switches application theme between Light and Dark mode using <code>ThemeContext</code>. Persists user preference in <code>localStorage</code> and HTML root class.</td>
+      </tr>
+      <tr>
+        <td><strong>Notification Trigger</strong></td>
+        <td><code>&lt;Bell /&gt;</code> icon with indicator dot</td>
+        <td>Displays active platform notifications, study session reminders, task deadlines, and friend request alerts with an amber status dot.</td>
+      </tr>
+      <tr>
+        <td><strong>User Profile Dropdown</strong></td>
+        <td>Avatar Circle & Chevron</td>
+        <td>Opens an animated popover showing:
+          <ul>
+            <li>Student Full Name & Email Address</li>
+            <li><strong>Target Exam Badge</strong> (🎯 JEE, NEET, UPSC, GATE, etc.)</li>
+            <li>Quick Link: <strong>My Profile</strong></li>
+            <li>Quick Link: <strong>Settings</strong></li>
+            <li>Action: <strong>Sign Out</strong> (clears JWT token & redirects to login)</li>
+          </ul>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>4. Sidebar Controls & Responsiveness Mechanics</h2>
+
+  <div class="callout">
+    <div class="callout-title">Collapsible Sidebar Mechanics (256px &leftrightarrow; 68px)</div>
+    Clicking the <code>&lt;ChevronLeft /&gt;</code> or <code>&lt;ChevronRight /&gt;</code> toggle button expands or collapses the sidebar width dynamically using Framer Motion animation. When collapsed, text labels hide smoothly, and floating hover tooltip popovers appear when hovering over icons.
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">Mobile Hamburger & Overlay Menu</div>
+    On mobile screens (screen width &lt; 1024px), the sidebar transitions into a slide-out drawer controlled by a fixed top-left hamburger button (<code>&lt;Menu /&gt;</code> / <code>&lt;X /&gt;</code>) and a semi-transparent backdrop overlay.
+  </div>
+
+  <div class="footer">
+    Smart-LMS Navigation Bar & Interface Feature Guide &copy; 2026. Antigravity AI Assistant.
+  </div>
+
+</body>
+</html>
