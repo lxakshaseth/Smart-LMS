@@ -452,6 +452,77 @@ export default function Friends() {
       fetchGroups();
     });
 
+    // ── CALL SOCKET LISTENERS ──────────────────────────────────────────────
+    socket.on("incoming-call", ({ from, fromName, fromAvatar, offer, isVideo }: any) => {
+      // Find the friend in our list
+      setFriends(prev => {
+        const caller = prev.find(f => f.id === from) || {
+          id: from, fullName: fromName, avatar: fromAvatar || fromName?.slice(0,2)?.toUpperCase() || "??",
+          email: "", phone: "", isMock: false, online: true, statusMessage: "", level: 1
+        } as Friend;
+        setActiveCallFriend(caller);
+        return prev;
+      });
+      setIsVideoCall(!!isVideo);
+      setCallState("incoming");
+      // Store offer on window for acceptCall to use
+      (window as any).__lms_incomingOffer = offer;
+      (window as any).__lms_callFrom = from;
+      // Start ringtone (respects device volume automatically via Web Audio)
+      ringtoneRef.current?.startRinging();
+    });
+
+    socket.on("call-accepted", async ({ from, answer }: any) => {
+      ringtoneRef.current?.stop();
+      try {
+        if (peerConnectionRef.current && answer) {
+          await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+        }
+      } catch (e) { console.warn("setRemoteDescription answer error:", e); }
+      setCallState("connected");
+      // Start call timer
+      setCallDuration(0);
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = window.setInterval(() => {
+        setCallDuration(prev => prev + 1);
+      }, 1000);
+    });
+
+    socket.on("call-rejected", () => {
+      ringtoneRef.current?.stop();
+      if (timerIntervalRef.current) { clearInterval(timerIntervalRef.current); timerIntervalRef.current = null; }
+      cleanupCallMedia();
+      setCallState("idle");
+      setActiveCallFriend(null);
+      setCallDuration(0);
+    });
+
+    socket.on("call-failed", ({ reason }: any) => {
+      ringtoneRef.current?.stop();
+      cleanupCallMedia();
+      setCallState("idle");
+      setActiveCallFriend(null);
+      setCallDuration(0);
+      alert(`Call failed: ${reason || "Friend is offline"}`);
+    });
+
+    socket.on("end-call", () => {
+      ringtoneRef.current?.stop();
+      if (timerIntervalRef.current) { clearInterval(timerIntervalRef.current); timerIntervalRef.current = null; }
+      cleanupCallMedia();
+      setCallState("idle");
+      setActiveCallFriend(null);
+      setCallDuration(0);
+    });
+
+    socket.on("ice-candidate", async ({ candidate }: any) => {
+      try {
+        if (peerConnectionRef.current && candidate) {
+          await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+      } catch (e) { console.warn("addIceCandidate error:", e); }
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -891,16 +962,291 @@ export default function Friends() {
     e.target.value = "";
   };
 
-  // WebRTC Calling logic placeholder
-  const initiateCall = (friend: Friend, isVideo: boolean) => {
+  // ── Friend Request Handlers ──────────────────────────────────────────────
+  const handleSendFriendRequest = async () => {
+    if (!addUsernameInput.trim()) return;
+    setAddingFriend(true);
+    setAddFriendStatus(null);
+    try {
+      const res = await apiRequest("/friends/request", {
+        method: "POST",
+        body: JSON.stringify({ username: addUsernameInput.trim() }),
+      });
+      if (res.success) {
+        setAddFriendStatus({ type: "success", message: res.message || "Request sent!" });
+        setAddUsernameInput("");
+        setSearchSuggestions([]);
+        fetchFriends();
+      } else {
+        setAddFriendStatus({ type: "error", message: res.message || "Failed to send request." });
+      }
+    } catch {
+      setAddFriendStatus({ type: "error", message: "Network error. Please try again." });
+    } finally {
+      setAddingFriend(false);
+    }
+  };
+
+  const handleAcceptRequest = async (requestId: string) => {
+    try {
+      const res = await apiRequest(`/friends/request/${requestId}`, {
+        method: "PUT",
+        body: JSON.stringify({ action: "accept" }),
+      });
+      if (res.success) {
+        fetchPendingRequests();
+        fetchFriends();
+      }
+    } catch (err) {
+      console.error("Accept request error:", err);
+    }
+  };
+
+  const handleDeclineRequest = async (requestId: string) => {
+    try {
+      const res = await apiRequest(`/friends/request/${requestId}`, {
+        method: "PUT",
+        body: JSON.stringify({ action: "reject" }),
+      });
+      if (res.success) {
+        fetchPendingRequests();
+      }
+    } catch (err) {
+      console.error("Decline request error:", err);
+    }
+  };
+
+  const handleSearchSuggestions = async (query: string) => {
+    setAddUsernameInput(query);
+    if (!query.trim() || query.trim().length < 1) {
+      setSearchSuggestions([]);
+      return;
+    }
+    setSearchingSuggestions(true);
+    try {
+      const res = await apiRequest(`/friends/search-list?query=${encodeURIComponent(query.trim())}`);
+      if (res.success && Array.isArray(res.users)) {
+        setSearchSuggestions(res.users);
+      } else {
+        setSearchSuggestions([]);
+      }
+    } catch {
+      setSearchSuggestions([]);
+    } finally {
+      setSearchingSuggestions(false);
+    }
+  };
+
+  // ── Helper: cleanup media streams & peer connection ───────────────────────
+  const cleanupCallMedia = () => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(t => t.stop());
+      localStreamRef.current = null;
+    }
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+    if (localVideoRef.current) localVideoRef.current.srcObject = null;
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+  };
+
+  // ── Helper: create RTCPeerConnection with ICE relaying ───────────────────
+  const createPeerConnection = (targetUserId: string) => {
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+      ],
+    });
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate && socketRef.current?.connected) {
+        socketRef.current.emit("ice-candidate", {
+          to: targetUserId,
+          candidate: event.candidate,
+        });
+      }
+    };
+
+    pc.ontrack = (event) => {
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = event.streams[0];
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === "disconnected" || pc.connectionState === "failed" || pc.connectionState === "closed") {
+        endCall();
+      }
+    };
+
+    return pc;
+  };
+
+  // ── INITIATE CALL (caller side) ───────────────────────────────────────────
+  const initiateCall = async (friend: Friend, isVideo: boolean) => {
+    if (!socketRef.current?.connected) {
+      alert("Not connected to server. Please try again.");
+      return;
+    }
     setActiveCallFriend(friend);
     setIsVideoCall(isVideo);
     setCallState("outgoing");
+    setCallDuration(0);
+    ringtoneRef.current?.startRinging();
+
+    try {
+      // Get user media
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: isVideo ? { width: 640, height: 480, facingMode: "user" } : false,
+      });
+      localStreamRef.current = stream;
+
+      // Show local video preview if video call
+      if (localVideoRef.current && isVideo) {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      // Create peer connection
+      const pc = createPeerConnection(friend.id);
+      peerConnectionRef.current = pc;
+
+      // Add tracks
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+      // Create offer
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      // Emit call
+      socketRef.current.emit("call-user", {
+        to: friend.id,
+        offer,
+        fromName: user?.fullName || user?.email || "User",
+        fromAvatar: user?.avatar || (user?.fullName || "U").slice(0, 2).toUpperCase(),
+        isVideo,
+      });
+    } catch (err: any) {
+      ringtoneRef.current?.stop();
+      setCallState("idle");
+      setActiveCallFriend(null);
+      if (err.name === "NotAllowedError") {
+        alert("Microphone/camera permission denied. Please allow access in browser settings.");
+      } else {
+        alert("Could not start call: " + (err.message || err));
+      }
+    }
   };
 
-  const endCall = () => {
+  // ── ACCEPT CALL (callee side) ─────────────────────────────────────────────
+  const acceptCall = async () => {
+    ringtoneRef.current?.stop();
+    const incomingOffer = (window as any).__lms_incomingOffer;
+    const callFrom = (window as any).__lms_callFrom;
+
+    if (!incomingOffer || !callFrom) return;
+    if (!socketRef.current?.connected) return;
+
+    setCallState("connected");
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: isVideoCall ? { width: 640, height: 480, facingMode: "user" } : false,
+      });
+      localStreamRef.current = stream;
+
+      if (localVideoRef.current && isVideoCall) {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      const pc = createPeerConnection(callFrom);
+      peerConnectionRef.current = pc;
+
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+      await pc.setRemoteDescription(new RTCSessionDescription(incomingOffer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      socketRef.current.emit("accept-call", { to: callFrom, answer });
+
+      // Start call timer
+      setCallDuration(0);
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = window.setInterval(() => {
+        setCallDuration(prev => prev + 1);
+      }, 1000);
+    } catch (err: any) {
+      endCall();
+      if (err.name === "NotAllowedError") {
+        alert("Microphone/camera permission denied.");
+      }
+    }
+  };
+
+  // ── REJECT CALL (callee side) ─────────────────────────────────────────────
+  const rejectCall = () => {
+    ringtoneRef.current?.stop();
+    const callFrom = (window as any).__lms_callFrom;
+    if (callFrom && socketRef.current?.connected) {
+      socketRef.current.emit("reject-call", { to: callFrom });
+    }
+    (window as any).__lms_incomingOffer = null;
+    (window as any).__lms_callFrom = null;
+    cleanupCallMedia();
     setCallState("idle");
     setActiveCallFriend(null);
+    setCallDuration(0);
+  };
+
+  // ── END CALL (both sides) ─────────────────────────────────────────────────
+  const endCall = () => {
+    ringtoneRef.current?.stop();
+    const targetId = activeCallFriend?.id || (window as any).__lms_callFrom;
+    if (targetId && socketRef.current?.connected) {
+      socketRef.current.emit("end-call", { to: targetId });
+    }
+    (window as any).__lms_incomingOffer = null;
+    (window as any).__lms_callFrom = null;
+    if (timerIntervalRef.current) { clearInterval(timerIntervalRef.current); timerIntervalRef.current = null; }
+    cleanupCallMedia();
+    setCallState("idle");
+    setActiveCallFriend(null);
+    setCallDuration(0);
+    setIsMuted(false);
+    setIsVideoEnabled(true);
+  };
+
+  // ── TOGGLE MUTE ───────────────────────────────────────────────────────────
+  const toggleMute = () => {
+    if (localStreamRef.current) {
+      const audioTrack = localStreamRef.current.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsMuted(!audioTrack.enabled);
+      }
+    }
+  };
+
+  // ── TOGGLE VIDEO ──────────────────────────────────────────────────────────
+  const toggleVideo = () => {
+    if (localStreamRef.current) {
+      const videoTrack = localStreamRef.current.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        setIsVideoEnabled(videoTrack.enabled);
+      }
+    }
+  };
+
+  // ── FORMAT CALL DURATION ──────────────────────────────────────────────────
+  const formatDuration = (seconds: number) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+    const s = (seconds % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
   };
 
   // Render Ticks Helper
@@ -1287,6 +1633,14 @@ export default function Friends() {
                 >
                   <Info size={19} />
                 </button>
+                {/* Close Chat Button */}
+                <button
+                  onClick={() => setSelectedGroup(null)}
+                  title="Close Chat"
+                  className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 rounded-full transition-all active:scale-95"
+                >
+                  <X size={19} />
+                </button>
               </div>
             </div>
 
@@ -1426,6 +1780,14 @@ export default function Friends() {
                 </button>
                 <button onClick={() => initiateCall(selectedFriend, true)} title="Video Call" className="p-2 hover:bg-black/5 rounded-full">
                   <Video size={19} />
+                </button>
+                {/* Close Chat Button */}
+                <button
+                  onClick={() => setSelectedFriend(null)}
+                  title="Close Chat"
+                  className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 rounded-full transition-all active:scale-95"
+                >
+                  <X size={19} />
                 </button>
               </div>
             </div>
@@ -1569,6 +1931,513 @@ export default function Friends() {
           messageContent={selectedMsgForInfo.content}
           messageTime={selectedMsgForInfo.timestamp}
         />
+      )}
+
+      {/* 5. Add Friend / Contacts Modal — Instagram-style search */}
+      {showContactsModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+          onClick={() => { setShowContactsModal(false); setAddFriendStatus(null); setAddUsernameInput(""); setSearchSuggestions([]); }}
+        >
+          <div
+            className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden"
+            style={{ maxHeight: "85vh" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-[#e9edef] dark:border-slate-800">
+              <div>
+                <h2 className="text-base font-bold text-foreground">Add Study Partner</h2>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Find people by name or username</p>
+              </div>
+              <button
+                onClick={() => { setShowContactsModal(false); setAddFriendStatus(null); setAddUsernameInput(""); setSearchSuggestions([]); }}
+                className="w-8 h-8 rounded-full bg-[#f0f2f5] dark:bg-slate-800 hover:bg-[#e1e3e6] dark:hover:bg-slate-700 flex items-center justify-center text-muted-foreground transition-colors"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="px-4 py-3">
+              <div className="relative">
+                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                {searchingSuggestions && (
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-emerald-400/40 border-t-emerald-500 rounded-full animate-spin" />
+                )}
+                <input
+                  type="text"
+                  placeholder="Search by name or @username…"
+                  value={addUsernameInput}
+                  onChange={(e) => handleSearchSuggestions(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && addUsernameInput.trim()) handleSendFriendRequest(); }}
+                  className="w-full pl-9 pr-9 py-2.5 text-sm border border-[#e9edef] dark:border-slate-700 rounded-2xl bg-[#f0f2f5] dark:bg-slate-800 text-foreground placeholder:text-muted-foreground outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 transition-all"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {/* Results List — Instagram style */}
+            <div className="flex-1 overflow-y-auto">
+              {searchSuggestions.length > 0 ? (
+                <div className="pb-3">
+                  {addUsernameInput.trim() && (
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-5 pb-2">Results</p>
+                  )}
+                  {searchSuggestions.map((u: any, idx: number) => {
+                    const isAlreadyFriend = u.relationStatus === "accepted";
+                    const isPendingSent = u.relationStatus === "pending_sent";
+                    const isPendingReceived = u.relationStatus === "pending_received";
+                    return (
+                      <div
+                        key={u.id || u._id}
+                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#f7f7f7] dark:hover:bg-slate-800/60 transition-colors"
+                        style={{ animationDelay: `${idx * 40}ms` }}
+                      >
+                        {/* Avatar */}
+                        <div className="relative flex-shrink-0">
+                          <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-400 via-purple-500 to-pink-400 flex items-center justify-center text-white text-sm font-bold shadow-sm">
+                            {(u.fullName || u.name || u.username || "U").slice(0, 2).toUpperCase()}
+                          </div>
+                          {isAlreadyFriend && (
+                            <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center">
+                              <Check size={8} strokeWidth={3} className="text-white" />
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate leading-tight">{u.fullName || u.name || u.username}</p>
+                          <p className="text-[11px] text-muted-foreground truncate">@{u.username} · Lv {u.level || 1}</p>
+                          {isAlreadyFriend && (
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Already partners</span>
+                          )}
+                          {isPendingSent && (
+                            <span className="text-[10px] text-amber-500 font-medium">Request sent</span>
+                          )}
+                          {isPendingReceived && (
+                            <span className="text-[10px] text-blue-500 font-medium">Wants to partner</span>
+                          )}
+                        </div>
+
+                        {/* Action Button */}
+                        {!isAlreadyFriend && !isPendingSent && !isPendingReceived && (
+                          <button
+                            onClick={() => {
+                              setAddUsernameInput(u.username || "");
+                              setTimeout(() => handleSendFriendRequest(), 0);
+                            }}
+                            className="flex-shrink-0 bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-all active:scale-95 shadow-sm"
+                          >
+                            Add
+                          </button>
+                        )}
+                        {isPendingSent && (
+                          <span className="flex-shrink-0 text-[10px] text-amber-500 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-2 py-1 rounded-lg font-medium">Pending</span>
+                        )}
+                        {isPendingReceived && (
+                          <button
+                            onClick={() => handleAcceptRequest(u.requestId)}
+                            className="flex-shrink-0 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-all active:scale-95 shadow-sm"
+                          >
+                            Accept
+                          </button>
+                        )}
+                        {isAlreadyFriend && (
+                          <button
+                            onClick={() => {
+                              const friend = friends.find(f => f.id === u.id);
+                              if (friend) { setSelectedFriend(friend); setShowContactsModal(false); }
+                            }}
+                            className="flex-shrink-0 bg-[#f0f2f5] dark:bg-slate-700 hover:bg-[#e1e3e6] text-foreground text-xs font-semibold px-3 py-1.5 rounded-lg transition-all active:scale-95"
+                          >
+                            Message
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : addUsernameInput.trim() && !searchingSuggestions ? (
+                <div className="flex flex-col items-center py-8 text-muted-foreground gap-2">
+                  <User size={32} className="opacity-30" />
+                  <p className="text-sm">No users found for "{addUsernameInput}"</p>
+                </div>
+              ) : !addUsernameInput.trim() ? (
+                <div className="flex flex-col items-center py-8 text-muted-foreground gap-2">
+                  <Search size={32} className="opacity-20" />
+                  <p className="text-sm">Start typing to search people</p>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Status Toast */}
+            {addFriendStatus && (
+              <div className={`mx-4 mb-4 flex items-center gap-2 text-sm px-4 py-2.5 rounded-xl font-medium ${
+                addFriendStatus.type === "success"
+                  ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+                  : "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"
+              }`}>
+                {addFriendStatus.type === "success" ? <Check size={15} /> : <X size={15} />}
+                {addFriendStatus.message}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 6. Partner Requests Modal */}
+      {showRequestsModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.55)" }}
+          onClick={() => setShowRequestsModal(false)}
+        >
+          <div
+            className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col gap-4 max-h-[80vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-foreground">Partner Requests</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {pendingRequests.length > 0 ? `${pendingRequests.length} pending request${pendingRequests.length > 1 ? "s" : ""}` : "No pending requests"}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowRequestsModal(false)}
+                className="p-1.5 rounded-full hover:bg-[#e1e3e6] dark:hover:bg-slate-800 text-muted-foreground transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 -mx-1 px-1">
+              {pendingRequests.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-3 text-muted-foreground">
+                  <Heart size={40} className="opacity-30" />
+                  <p className="text-sm text-center">No pending partner requests.<br/>Ask someone to connect with you!</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {pendingRequests.map((req: any) => (
+                    <div key={req.requestId} className="flex items-center gap-3 p-3 bg-[#f0f2f5] dark:bg-slate-800 rounded-xl">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                        {(req.senderName || req.fullName || "U").slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground truncate">{req.senderName || req.fullName || "User"}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">@{req.senderUsername || req.username || req.email}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleAcceptRequest(req.requestId)}
+                          title="Accept"
+                          className="p-1.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white transition-all active:scale-95 shadow-sm"
+                        >
+                          <Check size={14} strokeWidth={3} />
+                        </button>
+                        <button
+                          onClick={() => handleDeclineRequest(req.requestId)}
+                          title="Decline"
+                          className="p-1.5 rounded-full bg-[#e1e3e6] dark:bg-slate-700 hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-500 transition-all active:scale-95"
+                        >
+                          <X size={14} strokeWidth={3} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7. Friend List Modal */}
+      {showFriendListModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.55)" }}
+          onClick={() => setShowFriendListModal(false)}
+        >
+          <div
+            className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col gap-4 max-h-[80vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-foreground">Study Partners</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{friends.length} partner{friends.length !== 1 ? "s" : ""}</p>
+              </div>
+              <button
+                onClick={() => setShowFriendListModal(false)}
+                className="p-1.5 rounded-full hover:bg-[#e1e3e6] dark:hover:bg-slate-800 text-muted-foreground transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 -mx-1 px-1">
+              {friends.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-3 text-muted-foreground">
+                  <UserCheck size={40} className="opacity-30" />
+                  <p className="text-sm text-center">No partners yet.<br/>Use the search to find someone!</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {friends.map((f) => (
+                    <div
+                      key={f.id}
+                      className="flex items-center gap-3 p-3 bg-[#f0f2f5] dark:bg-slate-800 rounded-xl cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-900/10 transition-colors"
+                      onClick={() => { setSelectedFriend(f); setSelectedGroup(null); setShowFriendListModal(false); }}
+                    >
+                      <div className="relative">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold">
+                          {f.avatar || f.fullName.slice(0, 2).toUpperCase()}
+                        </div>
+                        <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-slate-900 ${
+                          f.online ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"
+                        }`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground truncate">{f.fullName}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{f.online ? "Online" : f.statusMessage}</p>
+                      </div>
+                      <Award size={14} className="text-amber-400 flex-shrink-0" />
+                      <span className="text-[11px] text-muted-foreground">Lv {f.level}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* WHATSAPP-STYLE CALL OVERLAY                                    */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {callState !== "idle" && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center" style={{ background: "rgba(0,0,0,0.92)" }}>
+
+          {/* ── VIDEO CALL: Connected ── */}
+          {callState === "connected" && isVideoCall ? (
+            <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
+              {/* Remote Video (full screen) */}
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                className="w-full h-full object-cover"
+              />
+
+              {/* If no remote video yet, show avatar */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                {!remoteVideoRef.current?.srcObject && (
+                  <>
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-3xl font-bold shadow-2xl mb-4">
+                      {activeCallFriend?.avatar}
+                    </div>
+                    <p className="text-white text-lg font-semibold">{activeCallFriend?.fullName}</p>
+                    <p className="text-white/60 text-sm mt-1">Connecting video…</p>
+                  </>
+                )}
+              </div>
+
+              {/* Local Video (Picture-in-Picture) */}
+              <div className="absolute bottom-28 right-4 w-28 h-36 rounded-2xl overflow-hidden border-2 border-white/30 shadow-2xl bg-slate-800">
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover scale-x-[-1]"
+                />
+                {!isVideoEnabled && (
+                  <div className="absolute inset-0 bg-slate-800 flex items-center justify-center">
+                    <VideoOff size={20} className="text-white/50" />
+                  </div>
+                )}
+              </div>
+
+              {/* Call Timer */}
+              <div className="absolute top-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1">
+                <p className="text-white font-semibold text-base">{activeCallFriend?.fullName}</p>
+                <p className="text-emerald-400 text-sm font-mono font-bold">{formatDuration(callDuration)}</p>
+              </div>
+
+              {/* Controls */}
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-5">
+                <button
+                  onClick={toggleMute}
+                  className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90 ${isMuted ? "bg-white text-slate-900" : "bg-white/20 text-white border border-white/30"}`}
+                >
+                  {isMuted ? <MicOff size={22} /> : <Mic size={22} />}
+                </button>
+                <button
+                  onClick={endCall}
+                  className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-xl transition-all active:scale-90"
+                >
+                  <PhoneOff size={26} className="text-white" />
+                </button>
+                <button
+                  onClick={toggleVideo}
+                  className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90 ${!isVideoEnabled ? "bg-white text-slate-900" : "bg-white/20 text-white border border-white/30"}`}
+                >
+                  {isVideoEnabled ? <Video size={22} /> : <VideoOff size={22} />}
+                </button>
+              </div>
+            </div>
+
+          ) : callState === "connected" && !isVideoCall ? (
+            /* ── VOICE CALL: Connected ── */
+            <div className="flex flex-col items-center justify-between w-full h-full py-16 px-6"
+              style={{ background: "linear-gradient(160deg, #1e293b 0%, #0f172a 60%, #1e293b 100%)" }}>
+              {/* Hidden audio element for remote audio */}
+              <video ref={remoteVideoRef} autoPlay playsInline className="hidden" />
+
+              <div className="flex flex-col items-center gap-4 mt-8">
+                {/* Ripple avatar */}
+                <div className="relative flex items-center justify-center">
+                  <div className="absolute w-36 h-36 rounded-full bg-emerald-500/10 animate-ping" />
+                  <div className="absolute w-28 h-28 rounded-full bg-emerald-500/20 animate-pulse" />
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white text-3xl font-bold shadow-2xl z-10">
+                    {activeCallFriend?.avatar}
+                  </div>
+                </div>
+                <p className="text-white text-2xl font-bold mt-4">{activeCallFriend?.fullName}</p>
+                <p className="text-emerald-400 text-base font-mono font-bold tracking-widest">{formatDuration(callDuration)}</p>
+                <p className="text-white/50 text-xs">Voice Call • Connected</p>
+              </div>
+
+              {/* Controls */}
+              <div className="flex items-center gap-8 mb-6">
+                <div className="flex flex-col items-center gap-2">
+                  <button
+                    onClick={toggleMute}
+                    className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90 ${isMuted ? "bg-white text-slate-900" : "bg-white/10 text-white border border-white/20"}`}
+                  >
+                    {isMuted ? <MicOff size={22} /> : <Mic size={22} />}
+                  </button>
+                  <span className="text-white/50 text-[10px]">{isMuted ? "Unmute" : "Mute"}</span>
+                </div>
+
+                <div className="flex flex-col items-center gap-2">
+                  <button
+                    onClick={endCall}
+                    className="w-18 h-18 w-[72px] h-[72px] rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-2xl transition-all active:scale-90"
+                  >
+                    <PhoneOff size={28} className="text-white" />
+                  </button>
+                  <span className="text-white/50 text-[10px]">End</span>
+                </div>
+
+                <div className="flex flex-col items-center gap-2">
+                  <button
+                    className="w-14 h-14 rounded-full bg-white/10 text-white border border-white/20 flex items-center justify-center shadow-lg transition-all active:scale-90"
+                  >
+                    <Volume2 size={22} />
+                  </button>
+                  <span className="text-white/50 text-[10px]">Speaker</span>
+                </div>
+              </div>
+            </div>
+
+          ) : callState === "outgoing" ? (
+            /* ── OUTGOING CALL SCREEN ── */
+            <div className="flex flex-col items-center justify-between w-full h-full py-16 px-6"
+              style={{ background: "linear-gradient(160deg, #1e293b 0%, #0f172a 60%, #1e293b 100%)" }}>
+              <div className="flex flex-col items-center gap-4 mt-12">
+                <div className="relative flex items-center justify-center">
+                  <div className="absolute w-40 h-40 rounded-full bg-emerald-500/10 animate-ping" style={{ animationDuration: "1.5s" }} />
+                  <div className="absolute w-32 h-32 rounded-full bg-emerald-500/15 animate-pulse" />
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white text-3xl font-bold shadow-2xl z-10">
+                    {activeCallFriend?.avatar}
+                  </div>
+                </div>
+                <p className="text-white text-2xl font-bold mt-6">{activeCallFriend?.fullName}</p>
+                <div className="flex items-center gap-2 text-white/60 text-sm">
+                  {isVideoCall ? <Video size={15} /> : <Phone size={15} />}
+                  <span>{isVideoCall ? "Video" : "Voice"} call…</span>
+                </div>
+
+                {/* Animated dots */}
+                <div className="flex gap-1.5 mt-2">
+                  {[0, 1, 2].map(i => (
+                    <div key={i} className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.2}s` }} />
+                  ))}
+                </div>
+                <p className="text-white/40 text-xs mt-1">Ringing…</p>
+              </div>
+
+              {/* Local video preview for video calls */}
+              {isVideoCall && (
+                <div className="w-32 h-40 rounded-2xl overflow-hidden border-2 border-white/20 shadow-xl bg-slate-800 my-6">
+                  <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
+                </div>
+              )}
+
+              {/* Cancel button */}
+              <div className="flex flex-col items-center gap-2 mb-8">
+                <button
+                  onClick={endCall}
+                  className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-2xl transition-all active:scale-90"
+                >
+                  <PhoneOff size={26} className="text-white" />
+                </button>
+                <span className="text-white/50 text-xs">Cancel</span>
+              </div>
+            </div>
+
+          ) : callState === "incoming" ? (
+            /* ── INCOMING CALL SCREEN ── */
+            <div className="flex flex-col items-center justify-between w-full h-full py-16 px-6"
+              style={{ background: "linear-gradient(160deg, #1e293b 0%, #0f172a 60%, #1e293b 100%)" }}>
+              <div className="flex flex-col items-center gap-4 mt-12">
+                <p className="text-white/60 text-sm font-medium uppercase tracking-widest mb-2">
+                  Incoming {isVideoCall ? "Video" : "Voice"} Call
+                </p>
+                <div className="relative flex items-center justify-center">
+                  <div className="absolute w-40 h-40 rounded-full bg-emerald-500/10 animate-ping" style={{ animationDuration: "1.2s" }} />
+                  <div className="absolute w-32 h-32 rounded-full bg-emerald-500/20 animate-pulse" />
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white text-3xl font-bold shadow-2xl z-10 ring-4 ring-emerald-400/40">
+                    {activeCallFriend?.avatar}
+                  </div>
+                </div>
+                <p className="text-white text-2xl font-bold mt-6">{activeCallFriend?.fullName}</p>
+                <p className="text-white/50 text-sm">{isVideoCall ? "Wants to video call you" : "Wants to voice call you"}</p>
+              </div>
+
+              {/* Accept / Decline buttons */}
+              <div className="flex items-end justify-center gap-16 mb-8">
+                {/* Decline */}
+                <div className="flex flex-col items-center gap-2">
+                  <button
+                    onClick={rejectCall}
+                    className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-2xl transition-all active:scale-90"
+                  >
+                    <PhoneOff size={26} className="text-white" />
+                  </button>
+                  <span className="text-white/50 text-xs">Decline</span>
+                </div>
+
+                {/* Accept */}
+                <div className="flex flex-col items-center gap-2">
+                  <button
+                    onClick={acceptCall}
+                    className="w-16 h-16 rounded-full bg-emerald-500 hover:bg-emerald-600 flex items-center justify-center shadow-2xl transition-all active:scale-90 animate-pulse"
+                  >
+                    {isVideoCall ? <Video size={26} className="text-white" /> : <Phone size={26} className="text-white" />}
+                  </button>
+                  <span className="text-white/50 text-xs">Accept</span>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
       )}
     </div>
   );
