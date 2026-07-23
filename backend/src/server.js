@@ -581,7 +581,7 @@ io.on("connection", (socket) => {
 
     console.log(`📤 [SOCKET] Relaying message from ${senderId} to ${receiverId} [${isAttachment ? `attachment:${attachmentType}` : "text"}]`);
 
-    // 1. Save message to MongoDB for persistence
+    // 1. Save message to MongoDB with initial status "sent"
     let savedMsg = null;
     try {
       savedMsg = await FriendMessage.create({
@@ -603,16 +603,19 @@ io.on("connection", (socket) => {
       console.error("❌ [SOCKET] Error persisting message to MongoDB:", dbErr);
     }
 
+    const msgId = savedMsg ? savedMsg._id.toString() : null;
+    const msgTimestamp = savedMsg?.createdAt ? savedMsg.createdAt.toISOString() : new Date().toISOString();
+
     // 2. Relay via Socket.IO if recipient is connected
     const targetSocketId = onlineUsers.get(receiverId);
     console.log(`🎯 [SOCKET] Receiver ${receiverId} socket state: ${targetSocketId ? `ONLINE (${targetSocketId})` : "OFFLINE"}`);
 
     if (targetSocketId) {
       io.to(targetSocketId).emit("receive-message", {
-        id: savedMsg ? savedMsg._id.toString() : Math.random().toString(36).substring(7),
+        id: msgId || Math.random().toString(36).substring(7),
         from: senderId,
         content,
-        timestamp: savedMsg?.createdAt ? savedMsg.createdAt.toISOString() : new Date().toISOString(),
+        timestamp: msgTimestamp,
         ...(isAttachment && {
           isAttachment: true,
           attachmentType,
@@ -625,6 +628,58 @@ io.on("connection", (socket) => {
         }),
       });
       console.log(`✅ [SOCKET] Delivered receive-message event to ${receiverId}`);
+
+      // 3. Mark message as "delivered" in DB (receiver got it)
+      if (msgId) {
+        try {
+          await FriendMessage.findByIdAndUpdate(msgId, { status: "delivered" });
+        } catch (e) { console.warn("[SOCKET] Could not update status to delivered:", e.message); }
+      }
+
+      // 4. Notify sender their message was delivered (grey double-tick)
+      socket.emit("message-delivered", { messageId: msgId, receiverId });
+    }
+  });
+
+  // ── MARK MESSAGES AS READ ─────────────────────────────────────────────────
+  // Emitted by the receiver when they open a conversation.
+  // Marks all unread messages from senderId as "read" in DB,
+  // then notifies the original sender (blue double-tick).
+  socket.on("mark-messages-read", async ({ fromUserId }) => {
+    if (!socket.userId || !fromUserId) return;
+    const readerId = socket.userId.toString();    // Person who just read the messages
+    const originalSenderId = fromUserId.toString(); // Person who sent those messages
+
+    try {
+      // Find all unread messages that the originalSender sent to the reader
+      const unread = await FriendMessage.find({
+        sender: originalSenderId,
+        receiver: readerId,
+        status: { $in: ["sent", "delivered"] }
+      }).select("_id");
+
+      if (unread.length === 0) return;
+
+      const ids = unread.map(m => m._id);
+
+      // Bulk-update to "read" in DB
+      await FriendMessage.updateMany(
+        { _id: { $in: ids } },
+        { status: "read" }
+      );
+
+      // Tell the original sender their messages have been read (blue ticks)
+      const senderSocketId = onlineUsers.get(originalSenderId);
+      if (senderSocketId) {
+        io.to(senderSocketId).emit("message-read", {
+          messageIds: ids.map(id => id.toString()),
+          byUserId: readerId
+        });
+      }
+
+      console.log(`👁️ [SOCKET] ${readerId} read ${ids.length} messages from ${originalSenderId}`);
+    } catch (err) {
+      console.error("❌ [SOCKET] mark-messages-read error:", err);
     }
   });
 

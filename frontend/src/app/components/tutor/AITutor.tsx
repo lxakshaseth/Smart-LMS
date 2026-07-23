@@ -539,11 +539,15 @@ export default function AITutor() {
       {/* ── sidebar ── */}
       <AnimatePresence initial={false}>
         {!collapsed && (
-          <motion.aside initial={{ width: 0, opacity: 0 }} animate={{ width: sidebarW, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }} transition={{ duration: 0.2 }}
-            style={{ width: sidebarW }}
-            className="absolute md:relative inset-y-0 left-0 z-20 flex-shrink-0 border-r border-border flex flex-col bg-card overflow-hidden"
-          >
+          <>
+            {/* mobile backdrop */}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setCollapsed(true)} className="md:hidden fixed inset-0 bg-black/40 z-20 backdrop-blur-xs" />
+            <motion.aside initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}
+              style={{ width: typeof window !== "undefined" && window.innerWidth < 768 ? "82vw" : sidebarW, maxWidth: "320px" }}
+              className="fixed md:relative inset-y-0 left-0 z-30 flex-shrink-0 border-r border-border flex flex-col bg-card overflow-hidden shadow-2xl md:shadow-none"
+            >
 
             <div className="flex items-center gap-2 px-3 pt-4 pb-3">
               <button onClick={newChat}
@@ -605,7 +609,8 @@ export default function AITutor() {
               )}
             </div>
           </motion.aside>
-        )}
+        </>
+      )}
       </AnimatePresence>
 
       {/* grip */}

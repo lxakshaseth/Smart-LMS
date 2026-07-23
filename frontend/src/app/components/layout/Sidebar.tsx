@@ -69,9 +69,10 @@ export function Sidebar() {
       {/* ── mobile hamburger ── */}
       <button
         onClick={() => setMobileOpen(v => !v)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-xl bg-card shadow-lg border border-border"
+        className="lg:hidden fixed top-2.5 sm:top-3.5 left-2.5 sm:left-4 z-50 p-1.5 sm:p-2 rounded-xl bg-card shadow-lg border border-border"
+        aria-label="Toggle Navigation Menu"
       >
-        {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+        {mobileOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
 
       {/* ── sidebar ── */}

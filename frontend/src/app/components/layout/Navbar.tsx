@@ -33,30 +33,30 @@ export function Navbar() {
   const doLogout = () => { logout(); navigate("/login"); };
 
   return (
-    <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border pl-16 pr-6 py-4 flex items-center justify-between gap-4 lg:px-6">
+    <nav className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border pl-14 sm:pl-16 pr-3 sm:pr-6 py-2.5 sm:py-4 flex items-center justify-between gap-2 sm:gap-4 lg:px-6">
       {/* search */}
-      <div className="flex-1 max-w-xl">
+      <div className="flex-1 max-w-xl min-w-0">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18}/>
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16}/>
           <input
             type="text"
             placeholder="Search courses, topics…"
             value={query}
             onChange={(e) => handleSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-xl bg-input-background border border-border focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+            className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-1.5 sm:py-2 rounded-xl bg-input-background border border-border focus:outline-none focus:ring-2 focus:ring-ring text-xs sm:text-sm truncate"
           />
         </div>
       </div>
 
       {/* right actions */}
-      <div className="flex items-center gap-3">
-        <button onClick={toggleTheme} className="p-2 rounded-xl hover:bg-muted transition-colors" aria-label="Toggle theme">
-          {theme === "light" ? <Moon size={19}/> : <Sun size={19}/>}
+      <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
+        <button onClick={toggleTheme} className="p-1.5 sm:p-2 rounded-xl hover:bg-muted transition-colors" aria-label="Toggle theme">
+          {theme === "light" ? <Moon size={18}/> : <Sun size={18}/>}
         </button>
 
-        <button className="relative p-2 rounded-xl hover:bg-muted transition-colors">
-          <Bell size={19}/>
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-amber-500 rounded-full"/>
+        <button className="relative p-1.5 sm:p-2 rounded-xl hover:bg-muted transition-colors" aria-label="Notifications">
+          <Bell size={18}/>
+          <span className="absolute top-1 sm:top-1.5 right-1 sm:right-1.5 w-1.5 h-1.5 bg-amber-500 rounded-full"/>
         </button>
 
         {/* user avatar + dropdown */}
