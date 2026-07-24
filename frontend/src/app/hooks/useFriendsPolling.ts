@@ -48,11 +48,13 @@ export interface PollGroupUpdate {
 
 interface PollResponse {
   success: boolean;
+  serverTime?: string;
   since: string;
   newMessages: PollMessage[];
   statusUpdates: { messageId: string; status: "delivered" | "read" }[];
   pendingRequestCount: number;
   groupUpdates: PollGroupUpdate[];
+  newGroupMessages?: any[];
 }
 
 // --- Status rank (higher = more complete) -------------------------------------
@@ -80,6 +82,8 @@ export interface UseFriendsPollingOptions {
   selectedGroupIdRef: React.MutableRefObject<string | null>;
   /** State setter for private message map (keyed by friendId) */
   setMessages: React.Dispatch<React.SetStateAction<Record<string, any[]>>>;
+  /** State setter for group messages map (keyed by groupId) */
+  setGroupMessages?: React.Dispatch<React.SetStateAction<Record<string, any[]>>>;
   /** State setter for groups array */
   setGroups: React.Dispatch<React.SetStateAction<any[]>>;
   /** State setter for direct unread count map (keyed by friendId) */
@@ -98,12 +102,13 @@ export function useFriendsPolling({
   selectedFriendIdRef,
   selectedGroupIdRef,
   setMessages,
+  setGroupMessages,
   setGroups,
   setDirectUnread,
   onPendingCountChange,
 }: UseFriendsPollingOptions) {
   // ISO timestamp of the last successful poll -- used as the `since` param
-  const lastPolledAt = useRef<string>(new Date(Date.now() - 1000).toISOString());
+  const lastPolledAt = useRef<string>(new Date(Date.now() - 10000).toISOString());
 
   // AbortController for the current in-flight request
   const abortRef = useRef<AbortController | null>(null);
@@ -116,6 +121,15 @@ export function useFriendsPolling({
 
   // Track last received pending count to avoid unnecessary callbacks
   const lastPendingCountRef = useRef<number>(-1);
+
+  // Stable callback ref for onPendingCountChange to prevent recreating poll function on every render
+  const onPendingCountChangeRef = useRef(onPendingCountChange);
+  useEffect(() => {
+    onPendingCountChangeRef.current = onPendingCountChange;
+  });
+
+  // Track previous userId to prevent resetting cursor on non-userId renders
+  const prevUserIdRef = useRef<string | undefined>(undefined);
 
   // --- Core poll function ---------------------------------------------------
 
@@ -172,6 +186,27 @@ export function useFriendsPolling({
           }
 
           // Return same reference if nothing changed -> zero re-render
+          return changed ? updated : prev;
+        });
+      }
+
+      // --- Merge incoming group messages -----------------------------------
+      if (setGroupMessages && data.newGroupMessages && data.newGroupMessages.length > 0) {
+        const incomingGrp = data.newGroupMessages;
+        setGroupMessages((prev) => {
+          let changed = false;
+          const updated = { ...prev };
+
+          for (const msg of incomingGrp) {
+            const key = msg.groupId;
+            const existing = updated[key] || [];
+
+            if (existing.some((m: any) => m.id === msg.id)) continue;
+
+            updated[key] = [...existing, msg];
+            changed = true;
+          }
+
           return changed ? updated : prev;
         });
       }
@@ -255,11 +290,11 @@ export function useFriendsPolling({
         data.pendingRequestCount !== lastPendingCountRef.current
       ) {
         lastPendingCountRef.current = data.pendingRequestCount;
-        onPendingCountChange(data.pendingRequestCount);
+        onPendingCountChangeRef.current?.(data.pendingRequestCount);
       }
 
-      // Advance cursor only after a successful poll
-      lastPolledAt.current = pollStart;
+      // Advance cursor using server-side time if available (eliminates client clock drift)
+      lastPolledAt.current = data.serverTime || pollStart;
     } catch (err: any) {
       // Intentional abort (e.g., component unmounted) -- silent
       if (err.name === "AbortError") return;
@@ -271,9 +306,9 @@ export function useFriendsPolling({
     selectedFriendIdRef,
     selectedGroupIdRef,
     setMessages,
+    setGroupMessages,
     setGroups,
     setDirectUnread,
-    onPendingCountChange,
   ]);
 
   // --- Lifecycle: start, pause, resume, cleanup ----------------------------
@@ -281,10 +316,16 @@ export function useFriendsPolling({
   useEffect(() => {
     if (!userId) return; // Do not poll if logged out
 
-    // Reset cursor when userId changes (e.g., logout -> login)
-    lastPolledAt.current = new Date(Date.now() - 1000).toISOString();
-    lastPendingCountRef.current = -1;
+    // Only reset cursor when userId actually changes (e.g. login / account switch)
+    if (prevUserIdRef.current !== userId) {
+      prevUserIdRef.current = userId;
+      lastPolledAt.current = new Date(Date.now() - 10000).toISOString();
+      lastPendingCountRef.current = -1;
+    }
     pausedRef.current = false;
+
+    // Run an immediate initial poll on mount / login
+    poll();
 
     // --- Visibility change: pause when tab is hidden, resume when active ---
     const onVisibility = () => {
