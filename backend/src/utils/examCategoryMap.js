@@ -5,6 +5,17 @@
  */
 
 const EXAM_MAP = {
+  "Engineering": {
+    examName: "Engineering",
+    defaultQuery: "Engineering Physics Mathematics Computer Science Mechanics",
+    recommendedQueries: [
+      "Engineering Physics & Mechanics Full Course",
+      "Data Structures & Algorithms in Engineering",
+      "Engineering Mathematics Calculus & Linear Algebra",
+      "Electrical & Electronics Engineering Basics"
+    ],
+    searchPrefix: "Engineering"
+  },
   "Class 10 Boards": {
     examName: "Class 10 Boards",
     defaultQuery: "Class 10 Science Mathematics NCERT CBSE Boards",

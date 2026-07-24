@@ -43,7 +43,7 @@ export function Navbar() {
             placeholder="Search courses, topics…"
             value={query}
             onChange={(e) => handleSearch(e.target.value)}
-            className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-1.5 sm:py-2 rounded-xl bg-input-background border border-border focus:outline-none focus:ring-2 focus:ring-ring text-xs sm:text-sm truncate"
+            className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-1.5 sm:py-2 rounded-xl bg-input-background text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 text-xs sm:text-sm truncate transition-colors shadow-xs"
           />
         </div>
       </div>

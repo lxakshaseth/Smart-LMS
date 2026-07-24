@@ -26,7 +26,7 @@ function pwStrength(pw: string): { score: number; label: string; color: string }
   return { score:s, ...map[Math.min(s, map.length-1)] };
 }
 
-const EXAMS = ["JEE Main","JEE Advanced","NEET","GATE","CAT","UPSC","SSC CGL","IBPS/SBI","NDA/CDS","Railway RRB","Class 10 Boards","Class 12 Boards","Other"];
+const EXAMS = ["Engineering","JEE Main","JEE Advanced","NEET","GATE","CAT","UPSC","SSC CGL","IBPS/SBI","NDA/CDS","Railway RRB","Class 10 Boards","Class 12 Boards","Other"];
 
 const FEATURES = [
   { icon:"🤖", text:"AI Mentor that explains like a personal tutor"     },
@@ -107,9 +107,9 @@ function TInput({ icon, type="text", placeholder, value, onChange, error, readOn
 }) {
   return (
     <div className={`relative flex items-center rounded-2xl border-2 bg-muted/40 transition-all ${error ? "border-destructive" : "border-border focus-within:border-primary focus-within:bg-background"}`}>
-      <span className="absolute left-4 text-muted-foreground">{icon}</span>
+      <span className="absolute left-4 text-muted-foreground z-10">{icon}</span>
       <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} readOnly={readOnly}
-        className="w-full pl-11 pr-4 py-3.5 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/50"/>
+        className="w-full pl-11 pr-4 py-3.5 bg-transparent text-foreground text-sm focus:outline-none placeholder:text-muted-foreground/50 rounded-2xl relative z-0"/>
     </div>
   );
 }
@@ -329,9 +329,9 @@ export default function Signup() {
                 <div className={`relative rounded-2xl border-2 bg-muted/40 transition-all ${errors.exam?"border-destructive":"border-border focus-within:border-primary focus-within:bg-background"}`}>
                   <GraduationCap size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"/>
                   <select value={form.exam} onChange={e=>set("exam",e.target.value)}
-                    className="w-full pl-11 pr-4 py-3.5 bg-transparent text-sm focus:outline-none appearance-none">
-                    <option value="">Select your target exam…</option>
-                    {EXAMS.map(ex=><option key={ex} value={ex}>{ex}</option>)}
+                    className="w-full pl-11 pr-4 py-3.5 bg-transparent text-foreground text-sm focus:outline-none appearance-none cursor-pointer">
+                    <option value="" className="bg-card text-foreground dark:bg-slate-800 dark:text-slate-100">Select your target exam…</option>
+                    {EXAMS.map(ex=><option key={ex} value={ex} className="bg-card text-foreground dark:bg-slate-800 dark:text-slate-100">{ex}</option>)}
                   </select>
                 </div>
               </Field>
@@ -373,36 +373,50 @@ export default function Signup() {
           </p>
         </motion.div>
       </div>
-      {/* ── TERMS OF SERVICE MODAL ── */}
+      {/* ── TERMS OF SERVICE MODAL (WIDE LANDSCAPE RECTANGLE UX) ── */}
       {showTermsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg bg-background rounded-3xl shadow-2xl border border-border overflow-hidden flex flex-col max-h-[80vh]">
-            <div className="px-6 py-4 bg-muted border-b border-border flex items-center justify-between">
-              <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
-                <Sparkles className="text-primary" size={17} /> Terms of Service
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 sm:p-6 animate-in fade-in duration-150">
+          <div className="w-full max-w-3xl bg-card rounded-2xl shadow-2xl border border-border/80 overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="px-6 py-4 bg-muted/50 border-b border-border flex items-center justify-between flex-shrink-0">
+              <h3 className="font-bold text-foreground text-base flex items-center gap-2">
+                <Sparkles className="text-primary" size={18} /> Terms of Service
               </h3>
-              <button onClick={() => setShowTermsModal(false)} className="text-muted-foreground hover:text-foreground">
+              <button onClick={() => setShowTermsModal(false)} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer border border-border/50">
                 <X size={18} />
               </button>
             </div>
-            <div className="p-6 overflow-y-auto space-y-4 text-xs text-muted-foreground leading-relaxed">
-              <p className="font-bold text-foreground text-sm">Welcome to Smart AI LMS!</p>
-              <p>These terms govern your use of the Smart AI LMS platform. By registering an account, you agree to comply with and be bound by the following conditions.</p>
-              
-              <p className="font-bold text-foreground">1. User Accounts</p>
-              <p>You must provide accurate and complete registration details. You are solely responsible for keeping your password secure and for any actions taken under your account name.</p>
-              
-              <p className="font-bold text-foreground">2. Academic Integrity</p>
-              <p>Smart AI LMS is designed to enhance your studies, quizzes, and learning analytics. You agree not to use our AI Tutor or mock test simulator to engage in academic dishonesty, copying, or cheating during real examinations.</p>
-              
-              <p className="font-bold text-foreground">3. User Content & Collaboration</p>
-              <p>Our workspace allows sharing study partner requests, documents, images, and simulated voice/video peer collaboration. You retain ownership of materials you upload, but grant us a license to host and serve them statically to your connected study partners.</p>
-              
-              <p className="font-bold text-foreground">4. System Limitations</p>
-              <p>The service is provided "as is". While our AI models (Gemini, Llama) strive for accuracy, educational responses are advisory. Always consult official textbooks for critical exam prep syllabus checks.</p>
+            
+            <div className="p-6 sm:p-7 overflow-y-auto space-y-4 text-xs text-muted-foreground leading-relaxed no-scrollbar">
+              <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/20 text-foreground text-xs font-medium">
+                <p className="font-bold text-sm text-primary mb-1">Welcome to Smart AI LMS!</p>
+                These terms govern your use of the Smart AI LMS platform. By registering an account, you agree to comply with and be bound by the following conditions.
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-1.5">
+                  <p className="font-bold text-foreground text-xs flex items-center gap-1.5">1. User Accounts</p>
+                  <p>You must provide accurate and complete registration details. You are solely responsible for keeping your password secure and for any actions taken under your account name.</p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-1.5">
+                  <p className="font-bold text-foreground text-xs flex items-center gap-1.5">2. Academic Integrity</p>
+                  <p>Smart AI LMS is designed to enhance your studies, quizzes, and learning analytics. You agree not to use our AI Tutor or mock test simulator to engage in academic dishonesty, copying, or cheating during real examinations.</p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-1.5">
+                  <p className="font-bold text-foreground text-xs flex items-center gap-1.5">3. User Content & Collaboration</p>
+                  <p>Our workspace allows sharing study partner requests, documents, images, and simulated voice/video peer collaboration. You retain ownership of materials you upload, but grant us a license to host and serve them statically to your connected study partners.</p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-1.5">
+                  <p className="font-bold text-foreground text-xs flex items-center gap-1.5">4. System Limitations</p>
+                  <p>The service is provided "as is". While our AI models (Gemini, Llama) strive for accuracy, educational responses are advisory. Always consult official textbooks for critical exam prep syllabus checks.</p>
+                </div>
+              </div>
             </div>
-            <div className="px-6 py-3 bg-muted border-t border-border flex justify-end">
-              <button onClick={() => setShowTermsModal(false)} className="px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:opacity-90 active:scale-95 transition-all shadow-md">
+
+            <div className="px-6 py-3.5 bg-muted/50 border-t border-border flex justify-end flex-shrink-0">
+              <button onClick={() => setShowTermsModal(false)} className="px-6 py-2.5 bg-primary text-primary-foreground text-xs font-bold rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-md cursor-pointer">
                 I Understand
               </button>
             </div>
@@ -410,36 +424,50 @@ export default function Signup() {
         </div>
       )}
 
-      {/* ── PRIVACY POLICY MODAL ── */}
+      {/* ── PRIVACY POLICY MODAL (WIDE LANDSCAPE RECTANGLE UX) ── */}
       {showPrivacyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg bg-background rounded-3xl shadow-2xl border border-border overflow-hidden flex flex-col max-h-[80vh]">
-            <div className="px-6 py-4 bg-muted border-b border-border flex items-center justify-between">
-              <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
-                <Sparkles className="text-primary" size={17} /> Privacy Policy
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 sm:p-6 animate-in fade-in duration-150">
+          <div className="w-full max-w-3xl bg-card rounded-2xl shadow-2xl border border-border/80 overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="px-6 py-4 bg-muted/50 border-b border-border flex items-center justify-between flex-shrink-0">
+              <h3 className="font-bold text-foreground text-base flex items-center gap-2">
+                <Sparkles className="text-primary" size={18} /> Privacy Policy
               </h3>
-              <button onClick={() => setShowPrivacyModal(false)} className="text-muted-foreground hover:text-foreground">
+              <button onClick={() => setShowPrivacyModal(false)} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer border border-border/50">
                 <X size={18} />
               </button>
             </div>
-            <div className="p-6 overflow-y-auto space-y-4 text-xs text-muted-foreground leading-relaxed">
-              <p className="font-bold text-foreground text-sm">Privacy Commitment</p>
-              <p>Your privacy is of utmost importance to us. This policy describes what information we collect and how we use it to customize your learning hub experience.</p>
-              
-              <p className="font-bold text-foreground">1. Information We Collect</p>
-              <p>We collect details you submit (name, username, email, phone, target exams) as well as academic progress data (quiz stats, streak dates, notes generated, study hours, and weak/strong topics).</p>
-              
-              <p className="font-bold text-foreground">2. Messaging and Static Uploads</p>
-              <p>Chats, shared documents, voice notes, and videos shared with study partners are stored securely on our backend. We do not sell or lease your files. They are strictly retrieved by authorized connected partners.</p>
-              
-              <p className="font-bold text-foreground">3. AI Data Processing</p>
-              <p>To provide personal mentor tutoring and note summary features, study queries are processed securely by our AI endpoints. No personal identifier details are shared with external AI model providers.</p>
-              
-              <p className="font-bold text-foreground">4. Storage Security</p>
-              <p>We use standard encryption protocols to protect your files on our server store. You can manage your account and request deletion of personal information at any time in the settings area.</p>
+
+            <div className="p-6 sm:p-7 overflow-y-auto space-y-4 text-xs text-muted-foreground leading-relaxed no-scrollbar">
+              <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/20 text-foreground text-xs font-medium">
+                <p className="font-bold text-sm text-primary mb-1">Privacy Commitment</p>
+                Your privacy is of utmost importance to us. This policy describes what information we collect and how we use it to customize your learning hub experience.
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-1.5">
+                  <p className="font-bold text-foreground text-xs flex items-center gap-1.5">1. Information We Collect</p>
+                  <p>We collect details you submit (name, username, email, phone, target exams) as well as academic progress data (quiz stats, streak dates, notes generated, study hours, and weak/strong topics).</p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-1.5">
+                  <p className="font-bold text-foreground text-xs flex items-center gap-1.5">2. Messaging & Static Uploads</p>
+                  <p>Chats, shared documents, voice notes, and videos shared with study partners are stored securely on our backend. We do not sell or lease your files. They are strictly retrieved by authorized connected partners.</p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-1.5">
+                  <p className="font-bold text-foreground text-xs flex items-center gap-1.5">3. AI Data Processing</p>
+                  <p>To provide personal mentor tutoring and note summary features, study queries are processed securely by our AI endpoints. No personal identifier details are shared with external AI model providers.</p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-1.5">
+                  <p className="font-bold text-foreground text-xs flex items-center gap-1.5">4. Storage Security</p>
+                  <p>We use standard encryption protocols to protect your files on our server store. You can manage your account and request deletion of personal information at any time in the settings area.</p>
+                </div>
+              </div>
             </div>
-            <div className="px-6 py-3 bg-muted border-t border-border flex justify-end">
-              <button onClick={() => setShowPrivacyModal(false)} className="px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:opacity-90 active:scale-95 transition-all shadow-md">
+
+            <div className="px-6 py-3.5 bg-muted/50 border-t border-border flex justify-end flex-shrink-0">
+              <button onClick={() => setShowPrivacyModal(false)} className="px-6 py-2.5 bg-primary text-primary-foreground text-xs font-bold rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-md cursor-pointer">
                 I Understand
               </button>
             </div>

@@ -1439,7 +1439,7 @@ export default function Friends() {
       <div className={`w-full lg:w-[410px] bg-white dark:bg-slate-900 border-r border-[#e9edef] dark:border-slate-800 flex flex-col flex-shrink-0 ${selectedFriend || selectedGroup ? "hidden lg:flex" : "flex"}`}>
         
         {/* User Header Card */}
-        <div className="bg-[#f0f2f5] dark:bg-slate-850 px-4 py-3 flex items-center justify-between relative">
+        <div className="bg-muted/60 dark:bg-slate-900 px-4 py-3 flex items-center justify-between relative">
           <div className="flex items-center gap-2.5">
             <div className="relative group">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm select-none shadow">
@@ -1449,7 +1449,7 @@ export default function Friends() {
               <button
                 onClick={() => setShowCreateGroupModal(true)}
                 title="Create Group Chat"
-                className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center shadow-md border-2 border-white dark:border-slate-850 active:scale-95 transition-all animate-pulse"
+                className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center shadow-md border-2 border-white dark:border-slate-900 active:scale-95 transition-all animate-pulse"
               >
                 <Plus size={12} strokeWidth={3} />
               </button>
@@ -1583,7 +1583,7 @@ export default function Friends() {
                           setSelectedFriend(null);
                         }}
                         className={`flex items-center justify-between px-4 py-3 cursor-pointer border-b border-muted/20 transition-all ${
-                          isSelected ? "bg-[#f0f2f5] dark:bg-slate-800" : "hover:bg-[#f5f6f8] dark:hover:bg-slate-850/60"
+                          isSelected ? "bg-[#f0f2f5] dark:bg-slate-800" : "hover:bg-[#f5f6f8] dark:hover:bg-slate-800/60"
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
@@ -1637,7 +1637,7 @@ export default function Friends() {
                           setSelectedGroup(null);
                         }}
                         className={`flex items-center justify-between px-4 py-3 cursor-pointer border-b border-muted/20 transition-all ${
-                          isSelected ? "bg-[#f0f2f5] dark:bg-slate-800" : "hover:bg-[#f5f6f8] dark:hover:bg-slate-850/60"
+                          isSelected ? "bg-[#f0f2f5] dark:bg-slate-800" : "hover:bg-[#f5f6f8] dark:hover:bg-slate-800/60"
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
@@ -1769,7 +1769,7 @@ export default function Friends() {
                       className={`max-w-[75%] rounded-2xl px-4 py-2.5 shadow-sm relative text-xs cursor-pointer transition-all ${
                         isSelf
                           ? "bg-[#d9fdd3] dark:bg-emerald-950 text-slate-900 dark:text-slate-100 rounded-tr-none"
-                          : "bg-white dark:bg-slate-850 text-slate-900 dark:text-slate-100 rounded-tl-none border border-slate-200/50 dark:border-slate-700/50"
+                          : "bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-tl-none border border-slate-200/50 dark:border-slate-700/50"
                       }`}
                     >
                       {/* Sender Tag for Group Chat */}
@@ -1897,7 +1897,7 @@ export default function Friends() {
                       className={`max-w-[75%] rounded-2xl px-4 py-2.5 shadow-sm relative text-xs ${
                         isSelf
                           ? "bg-[#d9fdd3] dark:bg-emerald-950 text-slate-900 dark:text-slate-100 rounded-tr-none"
-                          : "bg-white dark:bg-slate-850 text-slate-900 dark:text-slate-100 rounded-tl-none border border-slate-200/50"
+                          : "bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-tl-none border border-slate-200/50"
                       }`}
                     >
                       {msg.isAttachment ? (
