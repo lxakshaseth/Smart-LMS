@@ -16,12 +16,12 @@ function PwField({ value, onChange, error, placeholder = "Enter your password" }
   return (
     <div>
       <div className={`relative flex items-center rounded-2xl border-2 bg-muted/40 transition-all ${error ? "border-destructive" : "border-border focus-within:border-primary focus-within:bg-background"}`}>
-        <Lock size={17} className="absolute left-4 text-muted-foreground"/>
+        <Lock size={17} className="absolute left-4 text-muted-foreground z-10"/>
         <input type={show ? "text" : "password"} value={value} onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full pl-11 pr-11 py-3.5 bg-transparent text-sm focus:outline-none rounded-2xl placeholder:text-muted-foreground/50"/>
+          className="w-full pl-11 pr-11 py-3.5 bg-transparent text-foreground text-sm focus:outline-none rounded-2xl placeholder:text-muted-foreground/50 relative z-0"/>
         <button type="button" onClick={() => setShow(v => !v)}
-          className="absolute right-3.5 text-muted-foreground hover:text-foreground transition-colors p-0.5">
+          className="absolute right-3.5 text-muted-foreground hover:text-foreground transition-colors p-0.5 z-10">
           {show ? <EyeOff size={16}/> : <Eye size={16}/>}
         </button>
       </div>

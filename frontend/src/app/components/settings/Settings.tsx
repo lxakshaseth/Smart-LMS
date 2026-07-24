@@ -25,7 +25,7 @@ const tabs: { key: Tab; label: string; icon: React.ReactNode; danger?: boolean }
   { key: "danger",        label: "Danger Zone",     icon: <AlertTriangle size={15} />, danger: true },
 ];
 
-const examOptions   = ["JEE Main","JEE Advanced","NEET","GATE","CAT","UPSC","SSC CGL","IBPS PO","NDA/CDS","Railway RRB","Class 10 Board","Class 12 Board","Other"];
+const examOptions   = ["Engineering","JEE Main","JEE Advanced","NEET","GATE","CAT","UPSC","SSC CGL","IBPS PO","NDA/CDS","Railway RRB","Class 10 Board","Class 12 Board","Other"];
 const classOptions  = ["Nursery","LKG","UKG","Class 1","Class 2","Class 3","Class 4","Class 5","Class 6","Class 7","Class 8","Class 9","Class 10","Class 11","Class 12","Graduated"];
 const boardOptions  = ["CBSE","ICSE","State Board","IB","IGCSE","Other"];
 const languageOpts  = ["English","Hindi","Tamil","Telugu","Kannada","Marathi","Bengali","Gujarati"];

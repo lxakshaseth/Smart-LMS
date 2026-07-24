@@ -3,6 +3,7 @@ import { User } from "../context/AuthContext";
 export const DEFAULT_TARGET_EXAM = "Class 10 Boards";
 
 export const EXAM_OPTIONS = [
+  "Engineering",
   "JEE Main",
   "JEE Advanced",
   "NEET",

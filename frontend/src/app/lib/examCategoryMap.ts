@@ -25,6 +25,18 @@ export const UNIVERSAL_CATEGORIES = [
 ];
 
 export const EXAM_MAP: Record<string, ExamMapping> = {
+  "Engineering": {
+    examName: "Engineering",
+    categories: UNIVERSAL_CATEGORIES,
+    defaultQuery: "Engineering Physics Mathematics Computer Science Mechanics",
+    recommendedQueries: [
+      "Engineering Physics & Mechanics Full Course",
+      "Data Structures & Algorithms in Engineering",
+      "Engineering Mathematics Calculus & Linear Algebra",
+      "Electrical & Electronics Engineering Basics"
+    ],
+    searchPrefix: "Engineering"
+  },
   "Class 10 Boards": {
     examName: "Class 10 Boards",
     categories: UNIVERSAL_CATEGORIES,
