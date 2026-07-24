@@ -24,7 +24,8 @@ Distribute question difficulty as follows across the ${questionCount} questions:
 
   const systemPrompt = `You are an experienced examination paper setter from elite examination boards (IIT, NTA, UPSC, GATE, Testbook, LeetCode).
 Your task is to generate an authentic, high-quality, non-repetitive examination paper.
-Return STRICT JSON ONLY. Never generate markdown wrappers like \`\`\`json or \`\`\`. Do not include any intro, text, or explanations outside the JSON array.`;
+Return STRICT JSON ONLY. Never generate markdown wrappers like \`\`\`json or \`\`\`. Do not include any intro, text, or explanations outside the JSON array.
+JSON ESCAPING RULE: All backslashes in math formulas (LaTeX commands like \\\\frac, \\\\theta, \\\\sum, \\\\int), code snippets, or strings MUST be double-escaped (e.g. \\\\frac{a}{b}, \\\\theta) so that the JSON string is 100% valid JSON.`;
 
   const userPrompt = `
 [REQUEST METADATA - HIGH ENTROPY SEEDING]
@@ -48,6 +49,7 @@ STRICT GENERATION RULES:
 4. Provide a clear, educational explanation for why the correct option is right.
 5. ${difficultyGuideline}
 6. Do NOT include markdown code blocks. Output raw JSON array only.
+7. CRITICAL: Ensure all JSON strings are valid JSON strings. Escape any internal quotes with \\" and double-escape backslashes for math/LaTeX (\\\\frac, \\\\theta, \\\\alpha).
 
 REQUIRED JSON FORMAT:
 [

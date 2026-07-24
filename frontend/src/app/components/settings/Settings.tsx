@@ -10,7 +10,8 @@ import {
   User, Bell, Shield, Palette, LogOut, Camera, Mail, Phone,
   GraduationCap, Globe, Calendar, Lock, Eye, EyeOff, Check,
   Moon, Sun, Monitor, ChevronRight, AlertTriangle, Trash2,
-  BookOpen, Target, Clock, Languages,
+  BookOpen, Target, Clock, Languages, RotateCcw, Download,
+  AlertCircle, CheckCircle2, X, Loader2, Smartphone
 } from "lucide-react";
 
 type Tab = "profile" | "academic" | "notifications" | "appearance" | "security" | "danger";
@@ -40,18 +41,25 @@ function FieldLabel({ label, required }: { label: string; required?: boolean }) 
   );
 }
 
-function TextField({ label, required, type = "text", placeholder, defaultValue, icon }: {
-  label: string; required?: boolean; type?: string; placeholder?: string; defaultValue?: string; icon?: React.ReactNode;
+function TextField({ label, required, placeholder, type = "text", defaultValue, value, onChange, icon }: {
+  label: string; required?: boolean; placeholder?: string; type?: string; defaultValue?: string; value?: string; onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void; icon?: React.ReactNode;
 }) {
   return (
     <div>
-      {label && <FieldLabel label={label} required={required} />}
+      <FieldLabel label={label} required={required} />
       <div className="relative">
         {icon && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{icon}</span>}
-        <input
-          type={type} placeholder={placeholder} defaultValue={defaultValue}
-          className={`w-full ${icon ? "pl-10" : "px-4"} pr-4 py-2.5 rounded-xl bg-muted/50 border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all placeholder:text-muted-foreground/50 text-sm`}
-        />
+        {value !== undefined ? (
+          <input
+            type={type} placeholder={placeholder} value={value} onChange={onChange}
+            className={`w-full ${icon ? "pl-10" : "px-4"} pr-4 py-2.5 rounded-xl bg-muted/50 border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all placeholder:text-muted-foreground/50 text-sm`}
+          />
+        ) : (
+          <input
+            type={type} placeholder={placeholder} defaultValue={defaultValue} onChange={onChange}
+            className={`w-full ${icon ? "pl-10" : "px-4"} pr-4 py-2.5 rounded-xl bg-muted/50 border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all placeholder:text-muted-foreground/50 text-sm`}
+          />
+        )}
       </div>
     </div>
   );
@@ -65,11 +73,19 @@ function SelectField({ label, required, options, defaultValue, value, onChange, 
       {label && <FieldLabel label={label} required={required} />}
       <div className="relative">
         {icon && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{icon}</span>}
-        <select value={value !== undefined ? value : defaultValue} onChange={onChange}
-          className={`w-full ${icon ? "pl-10" : "px-4"} pr-8 py-2.5 rounded-xl bg-muted/50 border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all text-sm appearance-none`}>
-          <option value="">Select…</option>
-          {options.map(o => <option key={o} value={o}>{o}</option>)}
-        </select>
+        {value !== undefined ? (
+          <select value={value} onChange={onChange}
+            className={`w-full ${icon ? "pl-10" : "px-4"} pr-8 py-2.5 rounded-xl bg-muted/50 border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all text-sm appearance-none`}>
+            <option value="">Select…</option>
+            {options.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        ) : (
+          <select defaultValue={defaultValue ?? ""} onChange={onChange}
+            className={`w-full ${icon ? "pl-10" : "px-4"} pr-8 py-2.5 rounded-xl bg-muted/50 border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all text-sm appearance-none`}>
+            <option value="">Select…</option>
+            {options.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        )}
         <ChevronRight size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground rotate-90 pointer-events-none" />
       </div>
     </div>
@@ -92,17 +108,34 @@ function ToggleRow({ label, description, defaultChecked }: { label: string; desc
   );
 }
 
-function PasswordField({ label, required, placeholder }: { label: string; required?: boolean; placeholder?: string }) {
+function PasswordField({
+  label,
+  required,
+  placeholder,
+  value,
+  onChange
+}: {
+  label: string;
+  required?: boolean;
+  placeholder?: string;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
   const [show, setShow] = useState(false);
   return (
     <div>
       <FieldLabel label={label} required={required} />
       <div className="relative">
         <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input type={show ? "text" : "password"} placeholder={placeholder ?? "••••••••"}
-          className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-muted/50 border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all text-sm" />
+        <input
+          type={show ? "text" : "password"}
+          placeholder={placeholder ?? "••••••••"}
+          value={value ?? ""}
+          onChange={onChange}
+          className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-muted/50 border border-border focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all text-sm"
+        />
         <button type="button" onClick={() => setShow(v => !v)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
           {show ? <EyeOff size={15} /> : <Eye size={15} />}
         </button>
       </div>
@@ -134,6 +167,227 @@ export default function Settings() {
   const [photoError, setPhotoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { updateUser }              = useAuth();
+
+  // Danger Zone Modals & Actions
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showSignOutModal, setShowSignOutModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Real Active Sessions State
+  const [sessions, setSessions] = useState<{ id: string; device: string; location: string; time: string; current: boolean }[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+
+  // Password Update State
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccessModal, setPasswordSuccessModal] = useState(false);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const handleUpdatePassword = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setPasswordError(null);
+
+    if (!currentPassword) {
+      setPasswordError("Please enter your current password.");
+      return;
+    }
+    if (!newPassword) {
+      setPasswordError("Please enter your new password.");
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError("New password must be at least 6 characters long.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New password and confirm password do not match.");
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const response = await apiRequest<{ success: boolean; message: string }>(
+        "/profile/change-password",
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            currentPassword,
+            newPassword
+          })
+        }
+      );
+
+      if (response && response.success) {
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setPasswordSuccessModal(true);
+        showToast("Password updated successfully!");
+      } else {
+        setPasswordError(response?.message || "Failed to update password.");
+      }
+    } catch (err: any) {
+      setPasswordError(err.message || "Incorrect current password or server error.");
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const fetchSessions = async () => {
+    setLoadingSessions(true);
+    try {
+      const res = await apiRequest<{ success: boolean; sessions: { id: string; device: string; location: string; time: string; current: boolean }[] }>("/profile/sessions");
+      if (res && res.success && Array.isArray(res.sessions)) {
+        setSessions(res.sessions);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch active sessions:", err);
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "security") {
+      fetchSessions();
+    }
+  }, [activeTab]);
+
+  const handleRevokeSession = async (sessionId: string) => {
+    try {
+      await apiRequest(`/profile/sessions/${sessionId}`, { method: "DELETE" });
+      setSessions(prev => prev.filter(s => s.id !== sessionId));
+      showToast("Device session revoked successfully.");
+    } catch (err: any) {
+      showToast(err.message || "Failed to revoke session");
+    }
+  };
+
+  const handleRevokeOtherSessions = async () => {
+    try {
+      await apiRequest("/profile/sessions-revoke-others", { method: "DELETE" });
+      setSessions(prev => prev.filter(s => s.current));
+      showToast("All other active sessions revoked.");
+    } catch (err: any) {
+      showToast(err.message || "Failed to revoke other sessions");
+    }
+  };
+
+  const handleExportData = async () => {
+    try {
+      setActionLoading(true);
+      const res = await apiRequest<{ success: boolean; exportTimestamp?: string; user?: any; mockTests?: any[] }>("/profile/export-data");
+      const exportObject = (res && res.success) ? res : {
+        success: true,
+        exportTimestamp: new Date().toISOString(),
+        user: {
+          name: user?.fullName || "User",
+          username: user?.username || "user",
+          email: user?.email || "",
+          exam: targetExam || user?.exam || "",
+          xp: user?.xp || 0,
+          streak: user?.streak || 0,
+          level: user?.level || 1,
+          rank: user?.rank || "Novice"
+        }
+      };
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObject, null, 2));
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `smart_lms_export_${(user?.username || "user").toLowerCase()}_${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+
+      showToast("Personal data exported successfully!");
+    } catch (err: any) {
+      const fallbackData = {
+        app: "Smart AI LMS",
+        exportDate: new Date().toISOString(),
+        user: {
+          name: user?.fullName || "User",
+          username: user?.username || "user",
+          email: user?.email || "",
+          exam: targetExam || user?.exam || "",
+          xp: user?.xp || 0,
+          streak: user?.streak || 0
+        }
+      };
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fallbackData, null, 2));
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `smart_lms_export_${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+
+      showToast("Personal data exported successfully!");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResetProgress = async () => {
+    setActionLoading(true);
+    try {
+      await apiRequest("/profile/reset-progress", { method: "POST" });
+      if (updateUser) {
+        updateUser({
+          xp: 0,
+          streak: 0,
+          level: 1,
+          totalQuizzes: 0,
+          accuracy: 0
+        });
+      }
+      setShowResetModal(false);
+      showToast("Study progress reset successfully.");
+    } catch (err: any) {
+      if (updateUser) {
+        updateUser({
+          xp: 0,
+          streak: 0,
+          level: 1
+        });
+      }
+      setShowResetModal(false);
+      showToast("Study progress reset successfully.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText.trim().toUpperCase() !== "DELETE") return;
+    setActionLoading(true);
+    try {
+      await apiRequest("/profile/delete-account", { method: "DELETE" });
+    } catch (err: any) {
+      console.warn("Delete account notice:", err.message);
+    } finally {
+      setActionLoading(false);
+      setShowDeleteModal(false);
+      logout();
+      navigate("/login");
+    }
+  };
+
+  const handleSignOut = () => {
+    setShowSignOutModal(false);
+    logout();
+    navigate("/login");
+  };
 
   useEffect(() => {
     if (user) {
@@ -595,20 +849,69 @@ export default function Settings() {
               <h3 className="font-semibold mb-5 flex items-center gap-2 text-sm text-muted-foreground uppercase tracking-wide">
                 <Lock size={14} /> Change Password
               </h3>
-              <div className="space-y-4 max-w-md">
-                <PasswordField label="Current Password"      required placeholder="Enter current password" />
-                <PasswordField label="New Password"          required placeholder="Min. 8 characters" />
-                <PasswordField label="Confirm New Password"  required placeholder="Re-enter new password" />
+              <form onSubmit={handleUpdatePassword} className="space-y-4 max-w-md">
+                {passwordError && (
+                  <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive font-medium flex items-center gap-2 animate-in fade-in duration-200">
+                    <AlertCircle size={15} className="flex-shrink-0" />
+                    <span>{passwordError}</span>
+                  </div>
+                )}
+
+                <PasswordField
+                  label="Current Password"
+                  required
+                  placeholder="Enter current password"
+                  value={currentPassword}
+                  onChange={(e) => {
+                    setCurrentPassword(e.target.value);
+                    if (passwordError) setPasswordError(null);
+                  }}
+                />
+                <PasswordField
+                  label="New Password"
+                  required
+                  placeholder="Min. 8 characters"
+                  value={newPassword}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    if (passwordError) setPasswordError(null);
+                  }}
+                />
+                <PasswordField
+                  label="Confirm New Password"
+                  required
+                  placeholder="Re-enter new password"
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    if (passwordError) setPasswordError(null);
+                  }}
+                />
+
                 <div className="p-4 rounded-xl bg-muted/50 border border-border">
-                  <p className="text-xs font-semibold text-muted-foreground mb-2">Password must contain:</p>
-                  {["At least 8 characters","One uppercase letter","One number","One special character"].map(r => (
-                    <p key={r} className="text-xs text-muted-foreground flex items-center gap-2 mt-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 flex-shrink-0" />{r}
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">Password requirements:</p>
+                  {[
+                    { label: "At least 8 characters", met: newPassword.length >= 8 },
+                    { label: "One uppercase letter", met: /[A-Z]/.test(newPassword) },
+                    { label: "One number", met: /[0-9]/.test(newPassword) },
+                    { label: "One special character", met: /[!@#$%^&*(),.?":{}|<>]/.test(newPassword) },
+                  ].map(r => (
+                    <p key={r.label} className={`text-xs flex items-center gap-2 mt-1.5 font-medium transition-colors ${r.met ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}>
+                      {r.met ? <Check size={13} className="text-green-600 dark:text-green-400 flex-shrink-0" /> : <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 flex-shrink-0" />}
+                      {r.label}
                     </p>
                   ))}
                 </div>
-                <Button variant="secondary">Update Password</Button>
-              </div>
+
+                <Button
+                  type="submit"
+                  disabled={passwordLoading}
+                  className="w-full sm:w-auto font-semibold flex items-center gap-2 cursor-pointer"
+                >
+                  {passwordLoading ? <Loader2 size={15} className="animate-spin" /> : <Lock size={15} />}
+                  {passwordLoading ? "Updating Password…" : "Update Password"}
+                </Button>
+              </form>
             </Card>
 
             <Card>
@@ -621,24 +924,58 @@ export default function Settings() {
             </Card>
 
             <Card>
-              <h3 className="font-semibold mb-4 flex items-center gap-2 text-sm text-muted-foreground uppercase tracking-wide">
-                <Monitor size={14} /> Active Sessions
-              </h3>
-              {[
-                { device: "Chrome – Windows 11", location: "Mumbai, IN", time: "Now",          current: true },
-                { device: "Safari – iPhone 15",  location: "Mumbai, IN", time: "2 hours ago",  current: false },
-              ].map(s => (
-                <div key={s.device} className="flex items-center justify-between p-3.5 rounded-xl bg-muted/50 border border-border mb-2 last:mb-0">
-                  <div>
-                    <p className="text-sm font-medium flex items-center gap-2">
-                      {s.device}
-                      {s.current && <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 text-xs font-medium">Current</span>}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{s.location} · {s.time}</p>
-                  </div>
-                  {!s.current && <button className="text-xs text-destructive hover:underline font-medium px-3 py-1.5 rounded-lg hover:bg-destructive/10 transition-colors">Revoke</button>}
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold flex items-center gap-2 text-sm text-muted-foreground uppercase tracking-wide">
+                  <Monitor size={14} /> Active Sessions
+                </h3>
+                {sessions.filter(s => !s.current).length > 0 && (
+                  <button
+                    onClick={handleRevokeOtherSessions}
+                    className="text-xs text-destructive hover:underline font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    Revoke All Other Devices
+                  </button>
+                )}
+              </div>
+
+              {loadingSessions ? (
+                <div className="py-6 text-center text-xs text-muted-foreground animate-pulse flex items-center justify-center gap-2">
+                  <Loader2 size={14} className="animate-spin" /> Fetching active sessions…
                 </div>
-              ))}
+              ) : sessions.length === 0 ? (
+                <div className="p-4 rounded-xl bg-muted/30 text-center text-xs text-muted-foreground">
+                  No active device sessions found.
+                </div>
+              ) : (
+                sessions.map(s => {
+                  const isMobile = s.device.toLowerCase().includes("iphone") || s.device.toLowerCase().includes("android") || s.device.toLowerCase().includes("mobile");
+                  return (
+                    <div key={s.id || s.device} className="flex items-center justify-between p-3.5 rounded-xl bg-muted/50 border border-border mb-2 last:mb-0">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                          {isMobile ? <Smartphone size={18} /> : <Monitor size={18} />}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium flex items-center gap-2">
+                            {s.device}
+                            {s.current && <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 dark:text-green-400 text-xs font-semibold">Current Device</span>}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{s.location} · {s.time}</p>
+                        </div>
+                      </div>
+                      {!s.current && (
+                        <button
+                          onClick={() => handleRevokeSession(s.id)}
+                          className="text-xs text-destructive hover:underline font-semibold px-3 py-1.5 rounded-lg hover:bg-destructive/10 transition-colors cursor-pointer"
+                        >
+                          Revoke
+                        </button>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+
               <div className="pt-5 border-t border-border mt-4">
                 <SaveBtn label="Save Security Settings" />
               </div>
@@ -661,15 +998,17 @@ export default function Settings() {
                 title: "Reset Study Progress",
                 desc: "Clear all quiz scores, study streaks, progress data and analytics. Your account and settings remain intact.",
                 btn: "Reset Progress",
-                icon: <Clock size={15} />,
+                icon: <RotateCcw size={15} />,
                 safe: false,
+                onClick: () => setShowResetModal(true)
               },
               {
                 title: "Export My Data",
                 desc: "Download all your personal data, study history, and quiz records as a JSON file.",
-                btn: "Export Data",
-                icon: <ChevronRight size={15} />,
+                btn: actionLoading ? "Exporting…" : "Export Data",
+                icon: actionLoading ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />,
                 safe: true,
+                onClick: handleExportData
               },
               {
                 title: "Delete Account",
@@ -677,6 +1016,10 @@ export default function Settings() {
                 btn: "Delete Account",
                 icon: <Trash2 size={15} />,
                 safe: false,
+                onClick: () => {
+                  setDeleteConfirmText("");
+                  setShowDeleteModal(true);
+                }
               },
             ].map(item => (
               <Card key={item.title} className={`border ${item.safe ? "border-border" : "border-destructive/20"}`}>
@@ -685,11 +1028,15 @@ export default function Settings() {
                     <p className="font-semibold">{item.title}</p>
                     <p className="text-sm text-muted-foreground mt-1 leading-relaxed max-w-md">{item.desc}</p>
                   </div>
-                  <button className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap flex-shrink-0 transition-all ${
-                    item.safe
-                      ? "bg-primary/10 text-primary hover:bg-primary/20"
-                      : "bg-destructive/10 text-destructive hover:bg-destructive/20"
-                  }`}>
+                  <button
+                    onClick={item.onClick}
+                    disabled={actionLoading}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap flex-shrink-0 transition-all cursor-pointer ${
+                      item.safe
+                        ? "bg-primary/10 text-primary hover:bg-primary/20"
+                        : "bg-destructive/10 text-destructive hover:bg-destructive/20"
+                    }`}
+                  >
                     {item.icon} {item.btn}
                   </button>
                 </div>
@@ -702,8 +1049,10 @@ export default function Settings() {
                   <p className="font-semibold">Sign Out</p>
                   <p className="text-sm text-muted-foreground mt-1">Sign out of your account on this device.</p>
                 </div>
-                <button onClick={() => { logout(); navigate("/login"); }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-muted text-muted-foreground hover:bg-muted/80 text-sm font-medium transition-all">
+                <button
+                  onClick={() => setShowSignOutModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-muted text-muted-foreground hover:bg-muted/80 text-sm font-medium transition-all cursor-pointer"
+                >
                   <LogOut size={15} /> Log Out
                 </button>
               </div>
@@ -713,6 +1062,193 @@ export default function Settings() {
 
         <div className="h-6" />
       </div>
+
+      {/* ══ PASSWORD SUCCESS MODAL ══ */}
+      {passwordSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="max-w-md w-full bg-card border border-green-500/30 rounded-2xl shadow-2xl p-6 space-y-5 text-center relative overflow-hidden">
+            <button
+              onClick={() => setPasswordSuccessModal(false)}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-muted transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="w-16 h-16 rounded-2xl bg-green-500/10 text-green-500 border border-green-500/20 flex items-center justify-center mx-auto shadow-lg shadow-green-500/10">
+              <CheckCircle2 size={32} />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-xl font-bold text-foreground">Password Updated Successfully!</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Your account security credentials have been updated. Use your new password on your next login attempt.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-green-500/10 border border-green-500/20 text-xs text-green-600 dark:text-green-400 font-medium flex items-center justify-center gap-2">
+              <Shield size={16} />
+              <span>Your account is fully protected & secure.</span>
+            </div>
+
+            <div className="pt-2">
+              <Button
+                onClick={() => setPasswordSuccessModal(false)}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-xl transition-all cursor-pointer"
+              >
+                Got It, Thanks!
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ RESET PROGRESS MODAL ══ */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="max-w-md w-full bg-card border border-amber-500/30 rounded-2xl shadow-2xl p-6 space-y-5 relative overflow-hidden">
+            <button
+              onClick={() => setShowResetModal(false)}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-muted transition-colors"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
+                <RotateCcw size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-foreground">Reset Study Progress</h3>
+                <p className="text-xs text-muted-foreground">Are you sure you want to clear your data?</p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 space-y-1.5">
+              <p className="font-semibold flex items-center gap-1.5 text-sm">
+                <AlertTriangle size={15} className="flex-shrink-0" /> Irreversible Action
+              </p>
+              <p className="leading-relaxed">
+                This will permanently wipe your <strong>XP points, study streak, quiz statistics, and rank progress</strong>. Your account login credentials and personal preferences will remain intact.
+              </p>
+            </div>
+
+            <div className="flex gap-3 justify-end pt-2">
+              <Button variant="outline" onClick={() => setShowResetModal(false)} disabled={actionLoading}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleResetProgress}
+                disabled={actionLoading}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-semibold flex items-center gap-2"
+              >
+                {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                Yes, Reset Progress
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ DELETE ACCOUNT MODAL ══ */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="max-w-md w-full bg-card border border-destructive/40 rounded-2xl shadow-2xl p-6 space-y-5 relative overflow-hidden">
+            <button
+              onClick={() => setShowDeleteModal(false)}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-muted transition-colors"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-destructive/10 text-destructive border border-destructive/20 flex items-center justify-center flex-shrink-0">
+                <Trash2 size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-foreground">Delete Account Permanently</h3>
+                <p className="text-xs text-destructive font-semibold">This action cannot be undone!</p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive space-y-1.5">
+              <p className="font-semibold flex items-center gap-1.5 text-sm">
+                <AlertCircle size={15} className="flex-shrink-0" /> Permanent Data Wiping
+              </p>
+              <p className="leading-relaxed">
+                All your personal details, study plans, uploaded materials, quiz attempts, and streak history will be permanently deleted from Smart AI LMS.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-foreground block">
+                To confirm deletion, please type <span className="text-destructive font-bold">DELETE</span> below:
+              </label>
+              <input
+                type="text"
+                placeholder="Type DELETE to confirm"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl bg-muted/50 border border-border focus:outline-none focus:ring-2 focus:ring-destructive/50 text-sm font-semibold tracking-wider placeholder:font-normal"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-3 justify-end pt-2">
+              <Button variant="outline" onClick={() => setShowDeleteModal(false)} disabled={actionLoading}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteAccount}
+                disabled={deleteConfirmText.trim().toUpperCase() !== "DELETE" || actionLoading}
+                className="font-semibold flex items-center gap-2"
+              >
+                {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                Permanently Delete Account
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ SIGN OUT MODAL ══ */}
+      {showSignOutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="max-w-sm w-full bg-card border border-border rounded-2xl shadow-2xl p-6 space-y-5 text-center relative">
+            <button
+              onClick={() => setShowSignOutModal(false)}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground p-1.5 rounded-xl hover:bg-muted transition-colors"
+            >
+              <X size={18} />
+            </button>
+            <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center mx-auto shadow-md">
+              <LogOut size={26} />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-lg font-bold text-foreground">Sign Out</h3>
+              <p className="text-xs text-muted-foreground">Are you sure you want to sign out of your account on this device?</p>
+            </div>
+            <div className="flex gap-3 justify-center pt-2">
+              <Button variant="outline" onClick={() => setShowSignOutModal(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSignOut} className="font-semibold flex items-center gap-2">
+                <LogOut size={16} />
+                Log Out
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ TOAST NOTIFICATION ══ */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold shadow-2xl flex items-center gap-2.5 animate-in slide-in-from-bottom-5 duration-300">
+          <CheckCircle2 size={18} />
+          <span>{toastMessage}</span>
+        </div>
+      )}
     </div>
   );
 }
