@@ -34,13 +34,17 @@ function cleanAIResponse(text) {
   return cleaned;
 }
 
-// =====================================================
-// UTILITY: SAFE JSON PARSE
-// =====================================================
+const { cleanJSONString } = require("./mcq/questionParser");
+
 function safeJSONParse(text) {
   try {
     const cleaned = cleanAIResponse(text);
-    return JSON.parse(cleaned);
+    try {
+      return JSON.parse(cleaned);
+    } catch (e1) {
+      const repaired = cleanJSONString(cleaned);
+      return JSON.parse(repaired);
+    }
   } catch (error) {
     console.error("JSON Parse Error:", error.message);
     return null;

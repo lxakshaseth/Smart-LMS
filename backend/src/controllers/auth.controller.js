@@ -99,6 +99,28 @@ exports.register = async (req, res) => {
 
     const token = generateToken(user._id);
 
+    const crypto = require("crypto");
+    const { parseUserAgent, getClientLocation } = require("../utils/deviceParser");
+    const { deviceName, browser, os } = parseUserAgent(req.headers["user-agent"]);
+    const location = getClientLocation(req);
+    const sessionId = crypto.randomUUID();
+
+    if (!user.activeSessions) user.activeSessions = [];
+    user.activeSessions = user.activeSessions.filter(s => s.deviceName !== deviceName);
+    user.activeSessions.push({
+      sessionId,
+      token,
+      deviceName,
+      browser,
+      os,
+      ip: req.ip || "127.0.0.1",
+      location,
+      lastActive: new Date(),
+      createdAt: new Date()
+    });
+
+    await user.save({ validateBeforeSave: false });
+
     return res.status(201).json({
       success: true,
       message: "User registered successfully",
@@ -157,11 +179,34 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Update last login safely
+    const token = generateToken(user._id);
+
+    const crypto = require("crypto");
+    const { parseUserAgent, getClientLocation } = require("../utils/deviceParser");
+    const { deviceName, browser, os } = parseUserAgent(req.headers["user-agent"]);
+    const location = getClientLocation(req);
+    const sessionId = crypto.randomUUID();
+
+    if (!user.activeSessions) user.activeSessions = [];
+    user.activeSessions = user.activeSessions.filter(s => s.deviceName !== deviceName);
+    user.activeSessions.push({
+      sessionId,
+      token,
+      deviceName,
+      browser,
+      os,
+      ip: req.ip || "127.0.0.1",
+      location,
+      lastActive: new Date(),
+      createdAt: new Date()
+    });
+
+    if (user.activeSessions.length > 10) {
+      user.activeSessions = user.activeSessions.slice(-10);
+    }
+
     user.lastLogin = new Date();
     await user.save({ validateBeforeSave: false });
-
-    const token = generateToken(user._id);
 
     return res.status(200).json({
       success: true,

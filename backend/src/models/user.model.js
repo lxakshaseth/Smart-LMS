@@ -40,6 +40,22 @@ const dailyMissionSchema = new mongoose.Schema({
 }, { _id: false });
 
 /* =====================================================
+   ACTIVE SESSION SCHEMA
+===================================================== */
+
+const activeSessionSchema = new mongoose.Schema({
+  sessionId: { type: String, required: true },
+  token: { type: String, required: true },
+  deviceName: { type: String, required: true },
+  browser: { type: String, default: "Browser" },
+  os: { type: String, default: "OS" },
+  ip: { type: String, default: "127.0.0.1" },
+  location: { type: String, default: "Mumbai, IN" },
+  lastActive: { type: Date, default: Date.now },
+  createdAt: { type: Date, default: Date.now }
+}, { _id: false });
+
+/* =====================================================
    USER SCHEMA
 ===================================================== */
 
@@ -150,6 +166,11 @@ const userSchema = new mongoose.Schema({
 
   watchHistory: {
     type: Array,
+    default: []
+  },
+
+  activeSessions: {
+    type: [activeSessionSchema],
     default: []
   }
 

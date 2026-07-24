@@ -57,7 +57,42 @@ const protect = async (req, res, next) => {
       });
     }
 
-    // 4️⃣ Attach user to request
+    // 4️⃣ Validate or register session in user.activeSessions
+    const crypto = require("crypto");
+    const { parseUserAgent, getClientLocation } = require("../utils/deviceParser");
+    const { deviceName, browser, os } = parseUserAgent(req.headers["user-agent"]);
+
+    if (!user.activeSessions) user.activeSessions = [];
+
+    const existingSessionIndex = user.activeSessions.findIndex(s => s.token === token);
+
+    if (existingSessionIndex !== -1) {
+      // Update last active time periodically
+      const session = user.activeSessions[existingSessionIndex];
+      const now = new Date();
+      if (!session.lastActive || (now - new Date(session.lastActive)) > 60000) {
+        session.lastActive = now;
+        await user.save({ validateBeforeSave: false });
+      }
+    } else {
+      // Auto-register session for active valid token
+      const sessionId = crypto.randomUUID();
+      user.activeSessions = user.activeSessions.filter(s => s.deviceName !== deviceName);
+      user.activeSessions.push({
+        sessionId,
+        token,
+        deviceName,
+        browser,
+        os,
+        ip: req.ip || "127.0.0.1",
+        location: getClientLocation(req),
+        lastActive: new Date(),
+        createdAt: new Date()
+      });
+      await user.save({ validateBeforeSave: false });
+    }
+
+    // Attach user to request
     req.user = user;
 
     next();

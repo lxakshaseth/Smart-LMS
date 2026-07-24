@@ -47,7 +47,7 @@ async function callGroqMCQ({ systemPrompt, userPrompt }, questionCount = 10, max
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt }
           ],
-          temperature: 1.2,
+          temperature: 0.7,
           top_p: 0.95,
           max_tokens
         }),

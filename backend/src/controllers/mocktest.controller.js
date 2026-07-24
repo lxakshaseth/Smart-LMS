@@ -10,6 +10,8 @@ const Planner = require("../models/planner.model");
 // 1️⃣ GENERATE DYNAMIC MCQ EXAMINATION PAPER
 // POST /api/mocktest/generate
 // =====================================================
+const { getFallbackQuestionsForCategory } = require("../services/mcq/fallbackQuestions");
+
 exports.generateTest = async (req, res) => {
   try {
     const category = req.body.category || req.body.subject;
@@ -23,14 +25,28 @@ exports.generateTest = async (req, res) => {
       });
     }
 
-    // 1. Build prompt with random seed, timestamp, UUID, and syllabus
-    const promptPayload = buildMCQPrompt({ category, difficulty, questionCount });
+    let processedResult = null;
 
-    // 2. Execute Groq API call with high entropy (temp 1.2, top_p 0.95) & auto-retry
-    const rawAiText = await callGroqMCQ(promptPayload, questionCount, 3);
+    try {
+      // 1. Build prompt with random seed, timestamp, UUID, and syllabus
+      const promptPayload = buildMCQPrompt({ category, difficulty, questionCount });
 
-    // 3. Extract JSON, validate questions, shuffle options & update answer indices
-    const processedResult = parseAndProcessMCQs(rawAiText);
+      // 2. Execute Groq API call with auto-retry
+      const rawAiText = await callGroqMCQ(promptPayload, questionCount, 3);
+
+      // 3. Extract JSON, repair syntax, validate questions, shuffle options & update answer indices
+      processedResult = parseAndProcessMCQs(rawAiText, category, questionCount);
+    } catch (aiErr) {
+      console.warn(`⚠️ [MockTest Generator Fallback Triggered for ${category}]:`, aiErr.message);
+      const fallbackQuestions = getFallbackQuestionsForCategory(category, questionCount);
+      const paperHash = require("crypto").createHash("sha256").update(JSON.stringify(fallbackQuestions)).digest("hex");
+
+      processedResult = {
+        questions: fallbackQuestions,
+        questionCount: fallbackQuestions.length,
+        paperHash
+      };
+    }
 
     // 4. Return clean JSON response
     return res.json({

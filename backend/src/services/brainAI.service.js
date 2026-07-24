@@ -5,11 +5,12 @@ require("dotenv").config();
 // 🛡 SAFE JSON EXTRACTOR (PRODUCTION GRADE)
 // =======================================================
 
+const { cleanJSONString } = require("./mcq/questionParser");
+
 function extractJSON(text) {
   if (!text) return null;
 
   try {
-    // Remove markdown wrappers
     text = text.replace(/```json/g, "")
                .replace(/```/g, "")
                .trim();
@@ -21,7 +22,12 @@ function extractJSON(text) {
 
     const jsonString = text.substring(firstBrace, lastBrace + 1);
 
-    return JSON.parse(jsonString);
+    try {
+      return JSON.parse(jsonString);
+    } catch (e1) {
+      const repaired = cleanJSONString(jsonString);
+      return JSON.parse(repaired);
+    }
 
   } catch (err) {
     console.error("JSON Parse Error:", err.message);

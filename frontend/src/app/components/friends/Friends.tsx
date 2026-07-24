@@ -963,6 +963,36 @@ export default function Friends() {
         if (user?.email) safeSaveChatMessages(user.email, updated);
         return updated;
       });
+
+      // Automatically store exchanged documents/images into Friend Notes
+      if (attachmentPayload && (attachmentPayload.attachmentType === "document" || attachmentPayload.attachmentType === "image")) {
+        try {
+          const existingRaw = localStorage.getItem("smart_lms_shared_notes");
+          const existing = existingRaw ? JSON.parse(existingRaw) : [];
+          const newNote = {
+            id: `chat-note-${Date.now()}`,
+            title: attachmentPayload.fileName || `Exchanged ${attachmentPayload.attachmentType.toUpperCase()}`,
+            content: messageContent || `Document shared in chat with ${friend.name}`,
+            subject: "General",
+            senderName: "You",
+            senderAvatar: "👤",
+            receiverName: friend.name,
+            receiverAvatar: friend.avatar || "👤",
+            isIncoming: false,
+            chatMessage: messageContent || `Shared a ${attachmentPayload.attachmentType}`,
+            timestamp: "Just now",
+            tags: ["Chat Exchange", attachmentPayload.attachmentType.toUpperCase()],
+            fileType: attachmentPayload.attachmentType === "image" ? "image" : "pdf",
+            fileName: attachmentPayload.fileName,
+            fileSize: attachmentPayload.fileSize ? `${(attachmentPayload.fileSize / 1024).toFixed(1)} KB` : "1.2 MB",
+            fileData: attachmentPayload.fileData
+          };
+          localStorage.setItem("smart_lms_shared_notes", JSON.stringify([newNote, ...existing]));
+        } catch (e) {
+          console.error("Failed to auto-save shared note:", e);
+        }
+      }
+
       setInputText("");
 
       if (!friend.isMock && socketRef.current?.connected) {

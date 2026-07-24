@@ -291,6 +291,194 @@ router.put("/change-password", protect, async (req, res) => {
 
 /*
 ========================================================
+RESET STUDY PROGRESS
+========================================================
+*/
+router.post("/reset-progress", protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    user.xp = 0;
+    user.streak = 0;
+    user.totalQuizzes = 0;
+    user.accuracy = 0;
+    user.readiness = 0;
+    user.weakSubject = "";
+    user.strongSubject = "";
+    user.weeklyXP = [0, 0, 0, 0, 0, 0, 0];
+    user.updateLevelAndRank();
+
+    await user.save();
+
+    // Optionally delete mock test history
+    try {
+      const MockTest = require("../models/mocktest.model");
+      await MockTest.deleteMany({ user: req.user._id });
+    } catch (e) {
+      console.warn("MockTest cleanup notice:", e.message);
+    }
+
+    return res.json({
+      success: true,
+      message: "Study progress reset successfully",
+      data: {
+        xp: user.xp,
+        level: user.level,
+        rank: user.rank,
+        streak: user.streak,
+        accuracy: user.accuracy,
+        totalQuizzes: user.totalQuizzes
+      }
+    });
+
+  } catch (error) {
+    console.error("RESET PROGRESS ERROR:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to reset study progress"
+    });
+  }
+});
+
+/*
+========================================================
+EXPORT USER DATA
+========================================================
+*/
+router.get("/export-data", protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("-password").lean();
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    let mockTests = [];
+    try {
+      const MockTest = require("../models/mocktest.model");
+      mockTests = await MockTest.find({ user: req.user._id }).lean();
+    } catch (e) {
+      console.warn("MockTest fetch notice:", e.message);
+    }
+
+    return res.json({
+      success: true,
+      exportTimestamp: new Date().toISOString(),
+      user,
+      mockTestCount: mockTests.length,
+      mockTests
+    });
+
+  } catch (error) {
+    console.error("EXPORT DATA ERROR:", error.message);
+    return res.status(500).json({ success: false, message: "Failed to export data" });
+  }
+});
+
+/*
+========================================================
+GET ACTIVE SESSIONS
+========================================================
+*/
+router.get("/sessions", protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const currentToken = req.headers.authorization?.split(" ")[1];
+    const { formatRelativeTime } = require("../utils/deviceParser");
+
+    const rawSessions = user.activeSessions || [];
+
+    const formattedSessions = rawSessions.map(s => {
+      const isCurrent = s.token === currentToken;
+      return {
+        id: s.sessionId,
+        device: s.deviceName,
+        location: s.location || "Mumbai, IN",
+        time: isCurrent ? "Now" : formatRelativeTime(s.lastActive),
+        current: isCurrent,
+        lastActive: s.lastActive
+      };
+    }).sort((a, b) => (b.current ? 1 : 0) - (a.current ? 1 : 0));
+
+    return res.json({
+      success: true,
+      sessions: formattedSessions
+    });
+
+  } catch (error) {
+    console.error("GET SESSIONS ERROR:", error.message);
+    return res.status(500).json({ success: false, message: "Failed to fetch active sessions" });
+  }
+});
+
+/*
+========================================================
+REVOKE SESSION BY ID
+========================================================
+*/
+router.delete("/sessions/:sessionId", protect, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    user.activeSessions = (user.activeSessions || []).filter(s => s.sessionId !== sessionId);
+    await user.save({ validateBeforeSave: false });
+
+    return res.json({
+      success: true,
+      message: "Session revoked successfully"
+    });
+
+  } catch (error) {
+    console.error("REVOKE SESSION ERROR:", error.message);
+    return res.status(500).json({ success: false, message: "Failed to revoke session" });
+  }
+});
+
+/*
+========================================================
+REVOKE ALL OTHER SESSIONS
+========================================================
+*/
+router.delete("/sessions-revoke-others", protect, async (req, res) => {
+  try {
+    const currentToken = req.headers.authorization?.split(" ")[1];
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    user.activeSessions = (user.activeSessions || []).filter(s => s.token === currentToken);
+    await user.save({ validateBeforeSave: false });
+
+    return res.json({
+      success: true,
+      message: "All other active sessions revoked successfully"
+    });
+
+  } catch (error) {
+    console.error("REVOKE OTHERS ERROR:", error.message);
+    return res.status(500).json({ success: false, message: "Failed to revoke other sessions" });
+  }
+});
+
+/*
+========================================================
 DELETE ACCOUNT
 ========================================================
 */
@@ -320,3 +508,5 @@ router.delete("/delete-account", protect, async (req, res) => {
 });
 
 module.exports = router;
+
+
