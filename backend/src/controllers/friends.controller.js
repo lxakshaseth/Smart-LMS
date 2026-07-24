@@ -92,16 +92,20 @@ exports.getPendingRequests = async (req, res) => {
 // Send a friend request by target username
 exports.sendFriendRequest = async (req, res) => {
   try {
-    const { username } = req.body;
+    const { username, targetUserId: bodyTargetUserId, userId: bodyUserId } = req.body;
     const currentUserId = req.user.id;
 
-    if (!username?.trim()) {
-      return res.status(400).json({ success: false, message: "Username is required" });
-    }
+    const requestedId = bodyTargetUserId || bodyUserId;
+    let targetUser = null;
 
-    const targetUser = await User.findOne({
-      username: { $regex: new RegExp("^" + username.trim() + "$", "i") }
-    });
+    if (requestedId) {
+      targetUser = await User.findById(requestedId);
+    } else if (username?.trim()) {
+      const safeUsername = username.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      targetUser = await User.findOne({
+        username: { $regex: new RegExp("^" + safeUsername + "$", "i") }
+      });
+    }
 
     if (!targetUser) {
       return res.status(404).json({ success: false, message: "User not found" });
@@ -406,7 +410,7 @@ exports.getChatHistory = async (req, res) => {
       const unreadIds = unreadDocs.map(d => d._id);
       await FriendMessage.updateMany(
         { _id: { $in: unreadIds } },
-        { status: "read" }
+        { $set: { status: "read", updatedAt: new Date() } }
       );
 
       const io = req.app.get("io");
@@ -563,13 +567,55 @@ exports.pollUpdates = async (req, res) => {
       })
     );
 
+    const serverTime = new Date().toISOString();
+
+    // ── 5. Incoming group messages ──────────────────────────────
+    const userGroupIds = userGroups.map(g => g._id);
+    let newGroupMessages = [];
+    if (userGroupIds.length > 0) {
+      const incomingGroupDocs = await GroupMessage.find({
+        groupId: { $in: userGroupIds },
+        sender: { $ne: currentUserId },
+        createdAt: { $gt: sinceDate },
+        isDeleted: { $ne: true }
+      })
+        .populate("sender", "name username email")
+        .sort({ createdAt: 1 })
+        .lean();
+
+      newGroupMessages = incomingGroupDocs.map(msg => ({
+        id: msg._id.toString(),
+        groupId: msg.groupId.toString(),
+        senderId: msg.sender?._id ? msg.sender._id.toString() : msg.sender ? msg.sender.toString() : "",
+        senderName: msg.sender?.name || msg.sender?.username || "Group Member",
+        senderAvatar: (msg.sender?.name || msg.sender?.username || "GM").trim().split(/\s+/).map(w => w[0]).join("").toUpperCase().slice(0, 2),
+        content: msg.content || "",
+        messageType: msg.messageType || "text",
+        timestamp: msg.createdAt ? msg.createdAt.toISOString() : new Date().toISOString(),
+        status: "delivered",
+        ...(msg.isAttachment && {
+          isAttachment: true,
+          attachmentType: msg.attachmentType,
+          fileName: msg.fileName,
+          fileSize: msg.fileSize,
+          fileMimeType: msg.fileMimeType,
+          fileData: msg.fileData,
+          fileUrl: msg.fileUrl,
+          audioDuration: msg.audioDuration
+        }),
+        replyTo: msg.replyTo
+      }));
+    }
+
     return res.status(200).json({
       success: true,
+      serverTime,
       since: sinceDate.toISOString(),
       newMessages,
       statusUpdates,
       pendingRequestCount,
-      groupUpdates
+      groupUpdates,
+      newGroupMessages
     });
   } catch (error) {
     console.error("POLL UPDATES ERROR:", error.message);

@@ -542,21 +542,41 @@ export default function Friends() {
     });
 
     // ── BLUE TICK SOCKET LISTENERS ──────────────────────────────────────────────────
-    // "message-delivered" — grey double tick (receiver got it)
-    socket.on("message-delivered", ({ messageId }: { messageId: string }) => {
+    // "message-sent" — server persisted DB id, replace tempId with real msgId
+    socket.on("message-sent", ({ tempId, messageId, receiverId }: { tempId?: string; messageId: string; receiverId?: string }) => {
       if (!messageId) return;
       setMessages(prev => {
         let changed = false;
         const result: Record<string, Message[]> = {};
         for (const [fid, msgs] of Object.entries(prev)) {
           const updated = msgs.map(m => {
-            if (m.id === messageId && m.status === "sent") {
+            if (m.id === tempId || (tempId && m.id === tempId)) {
               changed = true;
-              return { ...m, status: "delivered" as const };
+              return { ...m, id: messageId };
             }
             return m;
           });
-          result[fid] = changed && result[fid] === undefined ? updated : msgs;
+          result[fid] = updated;
+        }
+        return changed ? result : prev;
+      });
+    });
+
+    // "message-delivered" — grey double tick (receiver got it)
+    socket.on("message-delivered", ({ tempId, messageId, receiverId }: { tempId?: string; messageId: string; receiverId?: string }) => {
+      if (!messageId && !tempId) return;
+      setMessages(prev => {
+        let changed = false;
+        const result: Record<string, Message[]> = {};
+        for (const [fid, msgs] of Object.entries(prev)) {
+          const isTargetFriend = receiverId && fid === receiverId;
+          const updated = msgs.map(m => {
+            if ((m.id === messageId || m.id === tempId || (isTargetFriend && m.status === "sent")) && m.status !== "delivered" && m.status !== "read") {
+              changed = true;
+              return { ...m, id: messageId || m.id, status: "delivered" as const };
+            }
+            return m;
+          });
           result[fid] = updated;
         }
         return changed ? result : prev;
@@ -564,15 +584,16 @@ export default function Friends() {
     });
 
     // "message-read" — blue double tick (receiver opened conversation)
-    socket.on("message-read", ({ messageIds }: { messageIds: string[] }) => {
-      if (!messageIds || messageIds.length === 0) return;
-      const idSet = new Set(messageIds);
+    socket.on("message-read", ({ messageIds, byUserId }: { messageIds?: string[]; byUserId?: string }) => {
+      if ((!messageIds || messageIds.length === 0) && !byUserId) return;
+      const idSet = new Set(messageIds || []);
       setMessages(prev => {
         let changed = false;
         const result: Record<string, Message[]> = {};
         for (const [fid, msgs] of Object.entries(prev)) {
+          const isTargetFriend = byUserId && fid === byUserId;
           const updated = msgs.map(m => {
-            if (idSet.has(m.id) && m.status !== "read") {
+            if ((idSet.has(m.id) || isTargetFriend) && m.status !== "read" && m.senderId !== fid) {
               changed = true;
               return { ...m, status: "read" as const };
             }
@@ -647,6 +668,7 @@ export default function Friends() {
     selectedFriendIdRef,
     selectedGroupIdRef,
     setMessages,
+    setGroupMessages,
     setGroups,
     setDirectUnread,
     onPendingCountChange: (count) => {
@@ -997,6 +1019,7 @@ export default function Friends() {
 
       if (!friend.isMock && socketRef.current?.connected) {
         socketRef.current.emit("send-message", {
+          tempId: newMsg.id,
           to: friend.id,
           content: messageContent,
           ...(attachmentPayload && { ...attachmentPayload }),
@@ -1058,25 +1081,36 @@ export default function Friends() {
   };
 
   // ── Friend Request Handlers ──────────────────────────────────────────────
-  const handleSendFriendRequest = async () => {
-    if (!addUsernameInput.trim()) return;
+  const handleSendFriendRequest = async (targetUsername?: string, targetUserId?: string) => {
+    const usernameToSend = (targetUsername || addUsernameInput).trim();
+    if (!usernameToSend && !targetUserId) return;
     setAddingFriend(true);
     setAddFriendStatus(null);
     try {
-      const res = await apiRequest("/friends/request", {
+      const res = await apiRequest<{ success: boolean; message?: string }>("/friends/request", {
         method: "POST",
-        body: JSON.stringify({ username: addUsernameInput.trim() }),
+        body: JSON.stringify(
+          targetUserId ? { targetUserId } : { username: usernameToSend }
+        ),
       });
       if (res.success) {
         setAddFriendStatus({ type: "success", message: res.message || "Request sent!" });
-        setAddUsernameInput("");
-        setSearchSuggestions([]);
+        setSearchSuggestions((prev) =>
+          prev.map((u: any) =>
+            (u.username === usernameToSend || u.id === targetUserId || u._id === targetUserId)
+              ? { ...u, relationStatus: "pending_sent" }
+              : u
+          )
+        );
         fetchFriends();
       } else {
         setAddFriendStatus({ type: "error", message: res.message || "Failed to send request." });
       }
-    } catch {
-      setAddFriendStatus({ type: "error", message: "Network error. Please try again." });
+    } catch (err: any) {
+      setAddFriendStatus({
+        type: "error",
+        message: err.message || "Failed to send request. Please try again.",
+      });
     } finally {
       setAddingFriend(false);
     }
@@ -2120,13 +2154,11 @@ export default function Friends() {
                         {/* Action Button */}
                         {!isAlreadyFriend && !isPendingSent && !isPendingReceived && (
                           <button
-                            onClick={() => {
-                              setAddUsernameInput(u.username || "");
-                              setTimeout(() => handleSendFriendRequest(), 0);
-                            }}
-                            className="flex-shrink-0 bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-all active:scale-95 shadow-sm"
+                            onClick={() => handleSendFriendRequest(u.username, u.id || u._id)}
+                            disabled={addingFriend}
+                            className="flex-shrink-0 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-all active:scale-95 shadow-sm"
                           >
-                            Add
+                            {addingFriend ? "Sending..." : "Add"}
                           </button>
                         )}
                         {isPendingSent && (

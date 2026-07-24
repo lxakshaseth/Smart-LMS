@@ -575,7 +575,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("send-message", async ({
-    to, content,
+    to, content, tempId,
     isAttachment, attachmentType, fileName, fileSize, fileMimeType, fileData, fileUrl, audioDuration
   }) => {
     if (!socket.userId || !to) {
@@ -612,6 +612,9 @@ io.on("connection", (socket) => {
     const msgId = savedMsg ? savedMsg._id.toString() : null;
     const msgTimestamp = savedMsg?.createdAt ? savedMsg.createdAt.toISOString() : new Date().toISOString();
 
+    // Send confirmation to sender so client updates tempId -> real DB msgId
+    socket.emit("message-sent", { tempId, messageId: msgId, receiverId, timestamp: msgTimestamp });
+
     // 2. Relay via Socket.IO if recipient is connected
     const targetSocketId = onlineUsers.get(receiverId);
     console.log(`🎯 [SOCKET] Receiver ${receiverId} socket state: ${targetSocketId ? `ONLINE (${targetSocketId})` : "OFFLINE"}`);
@@ -638,12 +641,12 @@ io.on("connection", (socket) => {
       // 3. Mark message as "delivered" in DB (receiver got it)
       if (msgId) {
         try {
-          await FriendMessage.findByIdAndUpdate(msgId, { status: "delivered" });
+          await FriendMessage.findByIdAndUpdate(msgId, { status: "delivered", updatedAt: new Date() });
         } catch (e) { console.warn("[SOCKET] Could not update status to delivered:", e.message); }
       }
 
       // 4. Notify sender their message was delivered (grey double-tick)
-      socket.emit("message-delivered", { messageId: msgId, receiverId });
+      socket.emit("message-delivered", { tempId, messageId: msgId, receiverId });
     }
   });
 
@@ -671,7 +674,7 @@ io.on("connection", (socket) => {
       // Bulk-update to "read" in DB
       await FriendMessage.updateMany(
         { _id: { $in: ids } },
-        { status: "read" }
+        { $set: { status: "read", updatedAt: new Date() } }
       );
 
       // Tell the original sender their messages have been read (blue ticks)
