@@ -592,6 +592,7 @@ const ocrFromImage = async (req, res) => {
 };
 
 module.exports = {
+  safeGroqCall,
   askAI,
   studyMode,
   generateQuiz,

@@ -57,62 +57,6 @@ export default function ContestPlatform() {
         </div>
       </div>
 
-      {/* Leaderboard Table */}
-      <div className="rounded-3xl bg-card/80 border border-border p-6 shadow-xl space-y-4 backdrop-blur-xl">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-            <Trophy className="text-amber-400" size={18} />
-            Live Global Leaderboard
-          </h3>
-          <span className="text-xs text-muted-foreground">Updated in real-time</span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-border bg-muted/30 font-bold text-muted-foreground uppercase tracking-wider">
-                <th className="py-3 px-4">Rank</th>
-                <th className="py-3 px-4">Participant</th>
-                <th className="py-3 px-4">Score</th>
-                <th className="py-3 px-4">Problems Solved</th>
-                <th className="py-3 px-4 text-right">Finish Time</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
-              {leaderboard.map((row) => (
-                <tr
-                  key={row.rank}
-                  className={`hover:bg-purple-500/5 transition-all ${
-                    row.isUser ? "bg-purple-500/10 border-l-4 border-l-purple-500 font-bold" : ""
-                  }`}
-                >
-                  <td className="py-3 px-4 font-mono font-bold text-purple-400">
-                    #{row.rank}
-                  </td>
-
-                  <td className="py-3 px-4 font-semibold text-foreground flex items-center gap-2">
-                    <span>{row.country}</span>
-                    <span>{row.name}</span>
-                  </td>
-
-                  <td className="py-3 px-4 font-mono text-foreground font-bold">
-                    {row.score} pts
-                  </td>
-
-                  <td className="py-3 px-4 font-mono text-green-400 font-bold">
-                    {row.solved} / 4
-                  </td>
-
-                  <td className="py-3 px-4 text-right font-mono text-muted-foreground">
-                    {row.time}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
     </div>
   );
 }

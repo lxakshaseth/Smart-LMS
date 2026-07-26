@@ -15,10 +15,6 @@ import LearningRoadmaps from "./LearningRoadmaps";
 import DSALearning from "./DSALearning";
 import ContestPlatform from "./ContestPlatform";
 import MockInterviews from "./MockInterviews";
-import ResumeAnalyzer from "./ResumeAnalyzer";
-import GitHubIntegration from "./GitHubIntegration";
-import PortfolioBuilder from "./PortfolioBuilder";
-import PlacementPrep from "./PlacementPrep";
 import EngineeringExam from "./EngineeringExam";
 import AnalyticsDashboard from "./AnalyticsDashboard";
 import Achievements from "./Achievements";
@@ -36,10 +32,6 @@ const tabs = [
   { id: "dsa", label: "DSA Visualizer", icon: BookOpen, category: "Learn", badge: "Interactive" },
   { id: "contests", label: "Contests", icon: Trophy, category: "Practice" },
   { id: "mock_interview", label: "AI Interview", icon: Mic, category: "Career", badge: "Voice" },
-  { id: "resume", label: "Resume ATS", icon: FileText, category: "Career" },
-  { id: "github", label: "GitHub Hub", icon: Github, category: "Career" },
-  { id: "portfolio", label: "Portfolio", icon: Compass, category: "Career" },
-  { id: "placements", label: "Placements", icon: Briefcase, category: "Exam & Prep" },
   { id: "sppu", label: "SPPU Engineering", icon: GraduationCap, category: "Exam & Prep" },
   { id: "analytics", label: "Analytics", icon: BarChart3, category: "Stats" },
   { id: "achievements", label: "Rewards & XP", icon: Award, category: "Stats" },
@@ -114,9 +106,6 @@ export default function CodePilotContainer() {
               <h1 className="text-lg font-black tracking-tight bg-gradient-to-r from-purple-400 via-indigo-400 to-blue-400 bg-clip-text text-transparent">
                 CodePilot AI
               </h1>
-              <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/30 rounded-full">
-                Engineering Section
-              </span>
             </div>
             <p className="text-xs text-muted-foreground">
               Exclusive for Engineering Students & Competitive Coding Prep
@@ -192,7 +181,7 @@ export default function CodePilotContainer() {
       </nav>
 
       {/* Main Content Area */}
-      <main className="relative z-10 flex-1 p-4 lg:p-8 max-w-7xl w-full mx-auto">
+      <main className="relative z-10 flex-1 p-4 lg:p-8 max-w-full w-full mx-auto overflow-x-hidden">
         {!isEngineeringTarget ? (
           <div className="p-8 lg:p-12 rounded-3xl bg-card/90 border border-purple-500/40 text-center space-y-6 shadow-2xl backdrop-blur-xl my-8 max-w-2xl mx-auto">
             <div className="w-16 h-16 rounded-2xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center mx-auto text-2xl">
@@ -255,14 +244,6 @@ export default function CodePilotContainer() {
             {activeTab === "contests" && <ContestPlatform />}
 
             {activeTab === "mock_interview" && <MockInterviews />}
-
-            {activeTab === "resume" && <ResumeAnalyzer />}
-
-            {activeTab === "github" && <GitHubIntegration />}
-
-            {activeTab === "portfolio" && <PortfolioBuilder />}
-
-            {activeTab === "placements" && <PlacementPrep />}
 
             {activeTab === "sppu" && <EngineeringExam />}
 
