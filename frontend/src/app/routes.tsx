@@ -16,6 +16,7 @@ import CriticalThinking from "./components/critical/CriticalThinking";
 import Notes from "./components/notes/Notes";
 import FocusTimer from "./components/focus/FocusTimer";
 import Friends from "./components/friends/Friends";
+import CodePilotContainer from "./components/codepilot/CodePilotContainer";
 
 export const router = createBrowserRouter([
   {
@@ -33,6 +34,8 @@ export const router = createBrowserRouter([
       { index: true, element: <Dashboard /> },
       { path: "ai-tutor", element: <AITutor /> },
       { path: "study", element: <StudyMode /> },
+      { path: "codepilot", element: <CodePilotContainer /> },
+      { path: "codepilot/*", element: <CodePilotContainer /> },
       { path: "quiz", element: <Quiz /> },
       { path: "planner", element: <Planner /> },
       { path: "analytics", element: <Analytics /> },
