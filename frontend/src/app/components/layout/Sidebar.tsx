@@ -11,7 +11,7 @@ const navItems = [
   { path: "/",          icon: LayoutDashboard, label: "Dashboard"        },
   { path: "/ai-tutor",  icon: Bot,             label: "AI Mentor"        },
   { path: "/study",     icon: BookOpen,        label: "Learning Hub"     },
-  { path: "/codepilot", icon: Code2,           label: "CodePilot AI", isNew: true },
+  { path: "/codepilot", icon: Code2,           label: "CodePilot AI" },
   { path: "/youtube",   icon: Youtube,         label: "Learning Videos"  },
   { path: "/books",     icon: Library,         label: "Library"          },
   { path: "/analytics", icon: BarChart3,       label: "Progress"         },

@@ -12,13 +12,19 @@ const {
   analyzeResume,
   mockInterview,
   getPlacementsData,
-  getSPPUData
+  getSPPUData,
+  submitProblem,
+  getUserCodePilotStats
 } = require("../controllers/codepilot.controller");
 
 // Health check
 router.get("/test", (req, res) => {
   res.json({ success: true, message: "CodePilot AI API operational 🚀" });
 });
+
+// User Stats & Submissions
+router.get("/user-stats", protectOptional, getUserCodePilotStats);
+router.post("/submit", protectOptional, submitProblem);
 
 // Compiler execution
 router.post("/compiler", protectOptional, runCompiler);
