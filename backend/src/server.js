@@ -26,6 +26,7 @@ const brainRoutes = require("./routes/brain.routes");
 const profileRoutes = require("./routes/profile.routes");
 const friendsRoutes = require("./routes/friends.routes");
 const groupRoutes = require("./routes/group.routes");
+const codepilotRoutes = require("./routes/codepilot.routes");
 const FriendMessage = require("./models/friendMessage.model");
 const Group = require("./models/group.model");
 const GroupMessage = require("./models/groupMessage.model");
@@ -207,6 +208,7 @@ app.use("/api/brain", brainRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/friends", friendsRoutes);
 app.use("/api/groups", groupRoutes);
+app.use("/api/codepilot", codepilotRoutes);
 
 app.use("/api", (req, res) => {
   res.status(404).json({
@@ -764,22 +766,17 @@ if (require.main === module) {
 
   logAllRoutes(app);
   console.log("[BOOT] ============================================");
-  console.log("[BOOT] Connecting to MongoDB...");
+  
+  server.listen(PORT, "0.0.0.0", () => {
+    console.log(`[BOOT] Server    : Listening on http://127.0.0.1:${PORT} ✅`);
+    console.log(`[BOOT] Frontend  : ${hasReactBuild ? "Serving React build from /" : `API-only mode — allowed origins: ${allowedOrigins.filter(o => !o.includes("localhost")).join(", ") || "(none set)"}`}`);
+    console.log("[BOOT] Smart AI LMS is ready to serve requests. ✅");
+  });
 
-  connectDB()
-    .then(() => {
-      console.log("[BOOT] MongoDB   : Connected ✅");
-      server.listen(PORT, () => {
-        console.log(`[BOOT] Server    : Listening on port ${PORT} ✅`);
-        console.log(`[BOOT] Frontend  : ${hasReactBuild ? "Serving React build from /" : `API-only mode — allowed origins: ${allowedOrigins.filter(o => !o.includes("localhost")).join(", ") || "(none set — add CLIENT_URL env var)"}`}`);
-        console.log("[BOOT] Smart AI LMS is ready to serve requests. ✅");
-      });
-    })
-    .catch((err) => {
-      console.error("[FATAL] Failed to connect to MongoDB:", err.message);
-      console.error("[FATAL] Ensure MONGO_URI or MONGODB_URI is set correctly in Render environment variables.");
-      process.exit(1);
-    });
+  console.log("[BOOT] Connecting to MongoDB...");
+  connectDB().catch((err) => {
+    console.warn("⚠️ MongoDB Background Connect Warning:", err.message);
+  });
 }
 
 module.exports = app;

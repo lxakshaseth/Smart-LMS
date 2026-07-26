@@ -2,17 +2,12 @@ const mongoose = require("mongoose");
 
 const connectDB = async () => {
   try {
-    const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
-    if (!mongoUri) {
-      throw new Error(
-        "MongoDB URI is not defined. Please set MONGODB_URI or MONGO_URI in your environment variables."
-      );
-    }
-    await mongoose.connect(mongoUri);
+    const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI || "mongodb://127.0.0.1:27017/smart-lms";
+    await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 5000 });
     console.log("✅ MongoDB Connected");
   } catch (error) {
-    console.error("❌ DB Error:", error);
-    process.exit(1);
+    console.warn("⚠️ MongoDB Warning:", error.message || error);
+    console.warn("⚠️ Server will continue running API services.");
   }
 };
 

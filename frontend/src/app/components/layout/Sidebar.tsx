@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router";
 import {
   LayoutDashboard, Bot, BookOpen, ClipboardList, Calendar,
   BarChart3, Library, Youtube, Settings, Menu, X, Upload,
-  ChevronLeft, ChevronRight, Brain, FileText, Timer, Users,
+  ChevronLeft, ChevronRight, Brain, FileText, Timer, Users, Code2,
 } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -11,11 +11,10 @@ const navItems = [
   { path: "/",          icon: LayoutDashboard, label: "Dashboard"        },
   { path: "/ai-tutor",  icon: Bot,             label: "AI Mentor"        },
   { path: "/study",     icon: BookOpen,        label: "Learning Hub"     },
-  { path: "/quiz",      icon: ClipboardList,   label: "Practice Arena"   },
-  { path: "/planner",   icon: Calendar,        label: "Study Planner"    },
-  { path: "/analytics", icon: BarChart3,       label: "Progress"         },
-  { path: "/books",     icon: Library,         label: "Library"          },
+  { path: "/codepilot", icon: Code2,           label: "CodePilot AI", isNew: true },
   { path: "/youtube",   icon: Youtube,         label: "Learning Videos"  },
+  { path: "/books",     icon: Library,         label: "Library"          },
+  { path: "/analytics", icon: BarChart3,       label: "Progress"         },
   { path: "/notes",     icon: FileText,        label: "Notes"            },
   { path: "/focus",     icon: Timer,           label: "Focus Timer"      },
   { path: "/critical",  icon: Brain,           label: "Critical Thinking"},
@@ -56,10 +55,33 @@ function LogoMark({ size = 40 }: { size?: number }) {
   );
 }
 
+import { useAuth } from "../../context/AuthContext";
+
 export function Sidebar() {
   const location  = useLocation();
+  const { user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed]   = useState(false);
+
+  const targetExam = (user?.exam || localStorage.getItem("targetExam") || "Engineering").toLowerCase();
+  
+  // CodePilot AI only displays for Engineering section
+  const isEngineeringSection =
+    targetExam.includes("engineering") ||
+    targetExam.includes("gate") ||
+    targetExam.includes("sppu") ||
+    targetExam.includes("computer") ||
+    targetExam.includes("coding") ||
+    targetExam.includes("software") ||
+    targetExam.includes("tech") ||
+    !user?.exam;
+
+  const filteredNavItems = navItems.filter((item) => {
+    if (item.path === "/codepilot") {
+      return isEngineeringSection;
+    }
+    return true;
+  });
 
   const W_FULL = 256;
   const W_ICON = 68;
@@ -128,7 +150,7 @@ export function Sidebar() {
 
         {/* ── nav items ── */}
         <nav className={`flex flex-col gap-0.5 flex-1 overflow-y-auto py-4 ${collapsed ? "px-2" : "px-3"}`}>
-          {navItems.map(item => {
+          {filteredNavItems.map(item => {
             const Icon     = item.icon;
             const isActive = location.pathname === item.path;
 
@@ -166,15 +188,20 @@ export function Sidebar() {
 
                   <AnimatePresence initial={false}>
                     {!collapsed && (
-                      <motion.span
+                      <motion.div
                         initial={{ opacity: 0, width: 0 }}
                         animate={{ opacity: 1, width: "auto" }}
                         exit={{ opacity: 0, width: 0 }}
                         transition={{ duration: 0.18 }}
-                        className="text-sm whitespace-nowrap overflow-hidden"
+                        className="flex items-center justify-between flex-1 overflow-hidden"
                       >
-                        {item.label}
-                      </motion.span>
+                        <span className="text-sm whitespace-nowrap overflow-hidden">{item.label}</span>
+                        {item.isNew && (
+                          <span className="ml-2 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-md shadow-xs animate-pulse">
+                            NEW
+                          </span>
+                        )}
+                      </motion.div>
                     )}
                   </AnimatePresence>
                 </Link>

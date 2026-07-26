@@ -40,11 +40,20 @@ export default defineConfig(({ mode }) => {
     port: 5173,
     proxy: {
       '/api': {
-        target: env.API_PROXY_TARGET || 'http://localhost:5000',
+        target: env.API_PROXY_TARGET || 'http://127.0.0.1:5000',
         changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('error', (err, _req, res) => {
+            console.warn('[Vite Proxy Warning]', err.message);
+            if (res && !res.headersSent) {
+              res.writeHead(503, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: false, message: 'Backend server starting or unavailable on port 5000' }));
+            }
+          });
+        },
       },
       '/socket.io': {
-        target: env.API_PROXY_TARGET || 'http://localhost:5000',
+        target: env.API_PROXY_TARGET || 'http://127.0.0.1:5000',
         ws: true,
         changeOrigin: true,
       },
