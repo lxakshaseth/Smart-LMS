@@ -18,9 +18,11 @@ const {
 
 const { protect } = require("../middleware/auth.middleware");
 
-// ============================
-// MULTER CONFIG (OCR UPLOAD)
-// ============================
+const fs = require("fs");
+
+if (!fs.existsSync("uploads")) {
+  fs.mkdirSync("uploads", { recursive: true });
+}
 
 const upload = multer({
   dest: "uploads/",

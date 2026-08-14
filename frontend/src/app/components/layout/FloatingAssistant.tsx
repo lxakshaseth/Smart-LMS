@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useLocation } from "react-router";
 import { Bot, X, Send, GripHorizontal, Minus, Maximize2, Minimize2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -17,6 +18,10 @@ const CHAT_W = 320;
 const CHAT_H = 440;
 
 export function FloatingAssistant() {
+  const location              = useLocation();
+  if (location.pathname === "/ai-tutor") {
+    return null;
+  }
   const [open, setOpen]       = useState(false);
   const [minimized, setMin]   = useState(false);
   const [input, setInput]     = useState("");
