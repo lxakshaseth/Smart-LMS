@@ -1,11 +1,20 @@
+# 🎨 Smart-LMS Frontend
 
-  # Design AI Learning Management System
+> **React 18 + Vite 6 + TypeScript + Tailwind CSS Frontend Application for Smart-LMS**
 
-  This is a code bundle for Design AI Learning Management System. The original project is available at https://www.figma.com/design/CBUXaH4mWYAPDKkqQxldBj/Design-AI-Learning-Management-System.
+For full platform documentation, backend setup, features matrix, and system architecture blueprints, please refer to the [Root README.md](../README.md).
 
-  ## Running the code
+## Quick Start (Frontend)
 
-  Run `npm i` to install the dependencies.
+```bash
+# 1. Install dependencies
+pnpm install # or npm install
 
-  Run `npm run dev` to start the development server.
-  
+# 2. Copy environment file
+cp .env.example .env
+
+# 3. Start development server
+npm run dev
+```
+
+The application will launch locally at `http://localhost:5173`.
