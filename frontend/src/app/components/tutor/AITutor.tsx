@@ -5,6 +5,7 @@ import {
   X, Check, GripVertical, Sparkles, BookOpen, Lightbulb,
   Clock, MessageSquare, Copy, ThumbsUp, ThumbsDown,
   RotateCcw, ChevronDown, AlertCircle, Code, Terminal, FileText, Cpu, HelpCircle,
+  Loader2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { apiRequest } from "../../lib/api";
@@ -312,6 +313,10 @@ export default function AITutor() {
   const [collapsed, setCollapsed] = useState(false);
   const [search, setSearch]       = useState("");
   const [showLangMenu, setShowLangMenu] = useState(false);
+  const [ocrLoading, setOcrLoading]     = useState(false);
+  const [selectedImage, setSelectedImage] = useState<{ file: File; preview: string; name: string } | null>(null);
+  const [ocrError, setOcrError]         = useState<string | null>(null);
+  const fileInputRef                    = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const checkSidebarCollapse = () => {
@@ -330,6 +335,62 @@ export default function AITutor() {
   const dragStartW                = useRef(DEF_W);
 
   const active = convs.find(c => c.id === activeId)!;
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setOcrError("Image size must be under 5MB");
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setSelectedImage({ file, preview: previewUrl, name: file.name });
+    setOcrError(null);
+    setOcrLoading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const res = await apiRequest<{ success: boolean; text: string; message?: string }>("/ai/ocr", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (res.success && res.text) {
+        setInput(prev =>
+          prev
+            ? `${prev}\n\n[Extracted Text from Image (${file.name})]:\n${res.text}`
+            : `[Extracted Text from Image (${file.name})]:\n${res.text}`
+        );
+
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.focus();
+            textareaRef.current.style.height = "auto";
+            textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 120) + "px";
+          }
+        }, 50);
+      } else {
+        setOcrError(res.message || "No readable text found in image.");
+      }
+    } catch (err) {
+      setOcrError(err instanceof Error ? err.message : "Failed to extract text from image.");
+    } finally {
+      setOcrLoading(false);
+      if (e.target) e.target.value = "";
+    }
+  };
+
+  const clearSelectedImage = () => {
+    if (selectedImage?.preview) {
+      URL.revokeObjectURL(selectedImage.preview);
+    }
+    setSelectedImage(null);
+    setOcrError(null);
+  };
 
   const updateActiveLanguage = (lang: string) => {
     if (!active) return;
@@ -758,17 +819,82 @@ export default function AITutor() {
         {/* input */}
         <div className="px-5 pb-5 pt-3 border-t border-border bg-card/30 flex-shrink-0">
           <div className="max-w-4xl mx-auto">
+            {/* hidden file input for OCR */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="hidden"
+            />
+
+            {/* OCR image preview / loading state banner */}
+            <AnimatePresence>
+              {(selectedImage || ocrError || ocrLoading) && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 6 }}
+                  className="mb-2.5 flex items-center justify-between gap-3 p-2.5 rounded-2xl bg-card border border-border text-xs shadow-sm"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {selectedImage && (
+                      <img
+                        src={selectedImage.preview}
+                        alt="Upload preview"
+                        className="w-10 h-10 rounded-xl object-cover border border-border flex-shrink-0"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <p className="font-semibold truncate text-foreground">{selectedImage?.name || "Uploaded Image"}</p>
+                      {ocrLoading ? (
+                        <p className="text-[11px] text-primary flex items-center gap-1.5 font-medium mt-0.5">
+                          <Loader2 size={12} className="animate-spin" /> Extracting text via OCR...
+                        </p>
+                      ) : ocrError ? (
+                        <p className="text-[11px] text-destructive flex items-center gap-1 font-medium mt-0.5">
+                          <AlertCircle size={12} /> {ocrError}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-green-500 font-medium flex items-center gap-1 mt-0.5">
+                          <Check size={12} /> OCR text appended to prompt!
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={clearSelectedImage}
+                    className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                    title="Remove image"
+                  >
+                    <X size={14} />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <div className="flex items-end gap-2 bg-card border border-border rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-primary/40 transition-all shadow-sm">
-              <button className="p-1 rounded-xl hover:bg-muted transition-colors flex-shrink-0 mb-0.5 text-muted-foreground" title="Upload image">
-                <ImageIcon size={18} />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={ocrLoading}
+                className={`p-1.5 rounded-xl transition-all flex-shrink-0 mb-0.5 ${
+                  ocrLoading
+                    ? "bg-primary/10 text-primary animate-pulse cursor-wait"
+                    : selectedImage
+                    ? "bg-primary/20 text-primary hover:bg-primary/30"
+                    : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                }`}
+                title="Upload image for OCR"
+              >
+                {ocrLoading ? <Loader2 size={18} className="animate-spin" /> : <ImageIcon size={18} />}
               </button>
               <textarea ref={textareaRef} rows={1} value={input}
-                onChange={e => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }}
+                onChange={e => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px"; }}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }}
                 placeholder="Ask any study-related question, upload notes, solve problems, explain concepts, generate summaries, or prepare for interviews..."
-                className="flex-1 bg-transparent resize-none focus:outline-none text-sm placeholder:text-muted-foreground/60 max-h-28 py-0.5" />
-              <button onClick={send} disabled={!input.trim() || typing}
-                className={`p-2.5 rounded-xl flex-shrink-0 transition-all ${input.trim() && !typing ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/30" : "bg-muted text-muted-foreground cursor-not-allowed"}`}>
+                className="flex-1 bg-transparent resize-none focus:outline-none text-sm placeholder:text-muted-foreground/60 max-h-40 py-0.5 custom-scrollbar" />
+              <button onClick={send} disabled={!input.trim() || typing || ocrLoading}
+                className={`p-2.5 rounded-xl flex-shrink-0 transition-all ${input.trim() && !typing && !ocrLoading ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/30" : "bg-muted text-muted-foreground cursor-not-allowed"}`}>
                 <Send size={16} />
               </button>
             </div>

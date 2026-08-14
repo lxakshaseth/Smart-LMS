@@ -576,18 +576,37 @@ const generateQuiz = async (req, res) => {
 =============================== */
 
 const ocrFromImage = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: "No image file provided" });
+  }
+
   try {
-    if (!req.file)
-      return res.status(400).json({ success: false });
-
     const result = await Tesseract.recognize(req.file.path, "eng");
-    fs.unlinkSync(req.file.path);
+    const rawText = result.data?.text || "";
+    const cleanedText = rawText
+      .split("\n")
+      .map(line => line.trim())
+      .filter(Boolean)
+      .join("\n");
 
-    res.json({ success: true, text: result.data.text });
-
+    res.json({
+      success: true,
+      text: cleanedText || rawText.trim()
+    });
   } catch (error) {
     console.error("OCR ERROR:", error);
-    res.status(500).json({ success: false });
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to extract text from image"
+    });
+  } finally {
+    if (req.file && fs.existsSync(req.file.path)) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (err) {
+        console.error("OCR TEMP FILE CLEANUP ERROR:", err);
+      }
+    }
   }
 };
 
