@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Search, Bell, Moon, Sun, LogOut, Settings, User, ChevronDown } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
@@ -12,7 +12,11 @@ export function Navbar() {
   const navigate                  = useNavigate();
   const location                  = useLocation();
   const [showMenu, setShowMenu]   = useState(false);
+  const [showNotifs, setShowNotifs] = useState(false);
   const [query, setQuery]         = useState("");
+
+  const menuRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   // Clear query when navigating away from youtube
   useEffect(() => {
@@ -20,6 +24,37 @@ export function Navbar() {
       setQuery("");
     }
   }, [location.pathname]);
+
+  // Handle clicking anywhere on the page to close popups
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setShowNotifs(false);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowMenu(false);
+        setShowNotifs(false);
+      }
+    };
+
+    if (showMenu || showNotifs) {
+      document.addEventListener("mousedown", handleOutsideClick);
+      document.addEventListener("touchstart", handleOutsideClick);
+      document.addEventListener("keydown", handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("touchstart", handleOutsideClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showMenu, showNotifs]);
 
   const handleSearch = (val: string) => {
     setQuery(val);
@@ -50,19 +85,52 @@ export function Navbar() {
 
       {/* right actions */}
       <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
-        <button onClick={toggleTheme} className="p-1.5 sm:p-2 rounded-xl hover:bg-muted transition-colors" aria-label="Toggle theme">
+        <button onClick={toggleTheme} className="p-1.5 sm:p-2 rounded-xl hover:bg-muted transition-colors cursor-pointer" aria-label="Toggle theme">
           {theme === "light" ? <Moon size={18}/> : <Sun size={18}/>}
         </button>
 
-        <button className="relative p-1.5 sm:p-2 rounded-xl hover:bg-muted transition-colors" aria-label="Notifications">
-          <Bell size={18}/>
-          <span className="absolute top-1 sm:top-1.5 right-1 sm:right-1.5 w-1.5 h-1.5 bg-amber-500 rounded-full"/>
-        </button>
+        {/* notifications dropdown */}
+        <div className="relative" ref={notifRef}>
+          <button
+            onClick={() => {
+              setShowNotifs(v => !v);
+              setShowMenu(false);
+            }}
+            className="relative p-1.5 sm:p-2 rounded-xl hover:bg-muted transition-colors cursor-pointer"
+            aria-label="Notifications"
+          >
+            <Bell size={18}/>
+            <span className="absolute top-1 sm:top-1.5 right-1 sm:right-1.5 w-1.5 h-1.5 bg-amber-500 rounded-full"/>
+          </button>
+
+          <AnimatePresence>
+            {showNotifs && (
+              <motion.div initial={{ opacity:0, y:-8, scale:0.95 }} animate={{ opacity:1, y:0, scale:1 }} exit={{ opacity:0, y:-8, scale:0.95 }}
+                transition={{ duration:0.15 }}
+                className="absolute right-0 top-12 z-50 w-80 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden p-4">
+                <div className="flex items-center justify-between pb-3 border-b border-border">
+                  <h4 className="font-bold text-sm text-foreground">Notifications</h4>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">New</span>
+                </div>
+                <div className="py-4 text-center text-xs text-muted-foreground space-y-1">
+                  <Bell size={24} className="mx-auto text-muted-foreground/40 mb-1" />
+                  <p className="font-medium text-foreground">All caught up!</p>
+                  <p className="text-[11px]">No new notifications at the moment.</p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* user avatar + dropdown */}
-        <div className="relative">
-          <button onClick={() => setShowMenu(v => !v)}
-            className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl hover:bg-muted transition-colors">
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => {
+              setShowMenu(v => !v);
+              setShowNotifs(false);
+            }}
+            className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl hover:bg-muted transition-colors cursor-pointer"
+          >
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-xs font-bold select-none">
               {user?.avatar ?? "?"}
             </div>
@@ -74,39 +142,35 @@ export function Navbar() {
 
           <AnimatePresence>
             {showMenu && (
-              <>
-                {/* backdrop */}
-                <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)}/>
-                <motion.div initial={{ opacity:0, y:-8, scale:0.95 }} animate={{ opacity:1, y:0, scale:1 }} exit={{ opacity:0, y:-8, scale:0.95 }}
-                  transition={{ duration:0.15 }}
-                  className="absolute right-0 top-12 z-50 w-56 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
-                  {/* user info */}
-                  <div className="px-4 py-3.5 border-b border-border">
-                    <p className="font-semibold text-sm truncate">{user?.fullName}</p>
-                    <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-                    <span className="mt-1.5 inline-block text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
-                      🎯 {getCurrentTargetExam(user)}
-                    </span>
-                  </div>
-                  {/* links */}
-                  <div className="py-1.5">
-                    <Link to="/settings" onClick={() => setShowMenu(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-muted transition-colors">
-                      <User size={15} className="text-muted-foreground"/> My Profile
-                    </Link>
-                    <Link to="/settings" onClick={() => setShowMenu(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-muted transition-colors">
-                      <Settings size={15} className="text-muted-foreground"/> Settings
-                    </Link>
-                  </div>
-                  <div className="border-t border-border py-1.5">
-                    <button onClick={doLogout}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors w-full text-left">
-                      <LogOut size={15}/> Sign Out
-                    </button>
-                  </div>
-                </motion.div>
-              </>
+              <motion.div initial={{ opacity:0, y:-8, scale:0.95 }} animate={{ opacity:1, y:0, scale:1 }} exit={{ opacity:0, y:-8, scale:0.95 }}
+                transition={{ duration:0.15 }}
+                className="absolute right-0 top-12 z-50 w-56 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
+                {/* user info */}
+                <div className="px-4 py-3.5 border-b border-border">
+                  <p className="font-semibold text-sm truncate text-foreground">{user?.fullName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                  <span className="mt-1.5 inline-block text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                    🎯 {getCurrentTargetExam(user)}
+                  </span>
+                </div>
+                {/* links */}
+                <div className="py-1.5">
+                  <Link to="/settings" onClick={() => setShowMenu(false)}
+                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-muted transition-colors text-foreground">
+                    <User size={15} className="text-muted-foreground"/> My Profile
+                  </Link>
+                  <Link to="/settings" onClick={() => setShowMenu(false)}
+                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-muted transition-colors text-foreground">
+                    <Settings size={15} className="text-muted-foreground"/> Settings
+                  </Link>
+                </div>
+                <div className="border-t border-border py-1.5">
+                  <button onClick={doLogout}
+                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors w-full text-left cursor-pointer">
+                    <LogOut size={15}/> Sign Out
+                  </button>
+                </div>
+              </motion.div>
             )}
           </AnimatePresence>
         </div>
@@ -114,3 +178,4 @@ export function Navbar() {
     </nav>
   );
 }
+
