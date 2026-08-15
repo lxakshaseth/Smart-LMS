@@ -1,22 +1,24 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, Bell, Moon, Sun, LogOut, Settings, User, ChevronDown } from "lucide-react";
-import { useTheme } from "../../context/ThemeContext";
+import { Search, Bell, Moon, Sun, LogOut, Settings, User, ChevronDown, BookOpen, Glasses, Check, Sparkles } from "lucide-react";
+import { useTheme, Theme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
 import { getCurrentTargetExam } from "../../lib/targetExam";
 import { useNavigate, Link, useLocation } from "react-router";
 import { AnimatePresence, motion } from "motion/react";
 
 export function Navbar() {
-  const { theme, toggleTheme }    = useTheme();
+  const { theme, setThemeMode, toggleTheme } = useTheme();
   const { user, logout }          = useAuth();
   const navigate                  = useNavigate();
   const location                  = useLocation();
   const [showMenu, setShowMenu]   = useState(false);
   const [showNotifs, setShowNotifs] = useState(false);
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
   const [query, setQuery]         = useState("");
 
   const menuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const themeRef = useRef<HTMLDivElement>(null);
 
   // Clear query when navigating away from youtube
   useEffect(() => {
@@ -34,16 +36,20 @@ export function Navbar() {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setShowNotifs(false);
       }
+      if (themeRef.current && !themeRef.current.contains(e.target as Node)) {
+        setShowThemeMenu(false);
+      }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setShowMenu(false);
         setShowNotifs(false);
+        setShowThemeMenu(false);
       }
     };
 
-    if (showMenu || showNotifs) {
+    if (showMenu || showNotifs || showThemeMenu) {
       document.addEventListener("mousedown", handleOutsideClick);
       document.addEventListener("touchstart", handleOutsideClick);
       document.addEventListener("keydown", handleKeyDown);
@@ -54,7 +60,7 @@ export function Navbar() {
       document.removeEventListener("touchstart", handleOutsideClick);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [showMenu, showNotifs]);
+  }, [showMenu, showNotifs, showThemeMenu]);
 
   const handleSearch = (val: string) => {
     setQuery(val);
@@ -66,6 +72,15 @@ export function Navbar() {
   };
 
   const doLogout = () => { logout(); navigate("/login"); };
+
+  const themeOptions: { id: Theme; label: string; icon: React.ElementType; desc: string; badge?: string }[] = [
+    { id: "eye-care", label: "Eye-Care Warm", icon: Glasses, desc: "Warm paper tone · 0 Glare", badge: "Recommended" },
+    { id: "dark",     label: "Midnight Slate",icon: Moon,    desc: "Low-light night study" },
+    { id: "light",    label: "Soft Daylight", icon: Sun,     desc: "Soft light mode" },
+  ];
+
+  const currentThemeIcon = theme === "eye-care" ? Glasses : theme === "dark" ? Moon : Sun;
+  const CurrentIcon = currentThemeIcon;
 
   return (
     <nav className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border pl-14 sm:pl-16 pr-3 sm:pr-6 py-2.5 sm:py-4 flex items-center justify-between gap-2 sm:gap-4 lg:px-6">
@@ -85,9 +100,90 @@ export function Navbar() {
 
       {/* right actions */}
       <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
-        <button onClick={toggleTheme} className="p-1.5 sm:p-2 rounded-xl hover:bg-muted transition-colors cursor-pointer" aria-label="Toggle theme">
-          {theme === "light" ? <Moon size={18}/> : <Sun size={18}/>}
-        </button>
+        {/* Eye-Care & Theme Switcher Dropdown */}
+        <div className="relative" ref={themeRef}>
+          <button
+            onClick={() => {
+              setShowThemeMenu(v => !v);
+              setShowMenu(false);
+              setShowNotifs(false);
+            }}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all cursor-pointer border ${
+              theme === "eye-care"
+                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                : "hover:bg-muted border-border text-foreground"
+            }`}
+            aria-label="Eye Comfort & Theme"
+            title="Eye Comfort & Theme Settings"
+          >
+            <CurrentIcon size={16} />
+            <span className="hidden md:inline text-xs font-semibold">
+              {theme === "eye-care" ? "Eye Care" : theme === "dark" ? "Dark" : "Light"}
+            </span>
+            <ChevronDown size={12} className={`text-muted-foreground transition-transform ${showThemeMenu ? "rotate-180" : ""}`} />
+          </button>
+
+          <AnimatePresence>
+            {showThemeMenu && (
+              <motion.div
+                initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                transition={{ duration: 0.15 }}
+                className="absolute right-0 top-12 z-50 w-64 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden p-2"
+              >
+                <div className="px-3 py-2 border-b border-border mb-1">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                    <Sparkles size={13} className="text-amber-500" />
+                    <span>Visual Comfort Modes</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Protect student eyes during long study hours</p>
+                </div>
+
+                <div className="space-y-1">
+                  {themeOptions.map((opt) => {
+                    const Icon = opt.icon;
+                    const isSelected = theme === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        onClick={() => {
+                          setThemeMode(opt.id);
+                          setShowThemeMenu(false);
+                        }}
+                        className={`flex items-center justify-between w-full px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-primary/10 text-primary font-semibold"
+                            : "hover:bg-muted text-foreground"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                            opt.id === "eye-care" ? "bg-amber-500/15 text-amber-600" : isSelected ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                          }`}>
+                            <Icon size={14} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs">{opt.label}</span>
+                              {opt.badge && (
+                                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold">
+                                  {opt.badge}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">{opt.desc}</p>
+                          </div>
+                        </div>
+                        {isSelected && <Check size={14} className="text-primary flex-shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* notifications dropdown */}
         <div className="relative" ref={notifRef}>

@@ -11,7 +11,7 @@ import {
   GraduationCap, Globe, Calendar, Lock, Eye, EyeOff, Check,
   Moon, Sun, Monitor, ChevronRight, AlertTriangle, Trash2,
   BookOpen, Target, Clock, Languages, RotateCcw, Download,
-  AlertCircle, CheckCircle2, X, Loader2, Smartphone
+  AlertCircle, CheckCircle2, X, Loader2, Smartphone, Glasses, Sparkles
 } from "lucide-react";
 
 type Tab = "profile" | "academic" | "notifications" | "appearance" | "security" | "danger";
@@ -149,11 +149,10 @@ function GroupLabel({ label }: { label: string }) {
 
 /* ─────────────── main ─────────────── */
 export default function Settings() {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setThemeMode } = useTheme();
   const { logout, user }       = useAuth();
   const navigate               = useNavigate();
   const [activeTab, setActiveTab]   = useState<Tab>("profile");
-  const [themeMode, setThemeMode]   = useState<"light"|"dark"|"system">(theme === "light" ? "light" : "dark");
   const [saved, setSaved]           = useState(false);
   const [accentIdx, setAccentIdx]   = useState(0);
   const [fontSize, setFontSize]     = useState("Medium");
@@ -763,28 +762,45 @@ export default function Settings() {
           <div className="space-y-5">
             {/* theme */}
             <Card>
-              <h3 className="font-semibold mb-5 flex items-center gap-2 text-sm text-muted-foreground uppercase tracking-wide">
-                <Palette size={14} /> Theme & Display
+              <h3 className="font-semibold mb-2 flex items-center gap-2 text-sm text-muted-foreground uppercase tracking-wide">
+                <Palette size={14} /> Theme & Visual Comfort
               </h3>
+              <p className="text-xs text-muted-foreground mb-5">
+                Protect your eyes from digital strain and blue light fatigue during long study sessions.
+              </p>
               <div className="space-y-6">
                 <div>
-                  <FieldLabel label="Theme Mode" required />
-                  <div className="grid grid-cols-3 gap-3">
-                    {([
-                      { key: "light",  label: "Light",  icon: <Sun size={22} /> },
-                      { key: "dark",   label: "Dark",   icon: <Moon size={22} /> },
-                      { key: "system", label: "System", icon: <Monitor size={22} /> },
-                    ] as const).map(t => (
+                  <FieldLabel label="Visual Comfort Mode" required />
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {[
+                      { key: "eye-care", label: "Eye-Care Warm", icon: <Glasses size={22} />, desc: "Warm sepia paper · 0 Glare", badge: "Recommended for Study" },
+                      { key: "dark",     label: "Midnight Slate",icon: <Moon size={22} />,    desc: "Low light night reading" },
+                      { key: "light",    label: "Soft Daylight", icon: <Sun size={22} />,     desc: "Soft cool daylight" },
+                    ].map(t => (
                       <button key={t.key}
-                        onClick={() => { setThemeMode(t.key); if (t.key !== "system" && t.key !== theme) toggleTheme(); }}
-                        className={`flex flex-col items-center gap-2.5 p-4 rounded-xl border-2 transition-all ${
-                          themeMode === t.key
+                        onClick={() => setThemeMode(t.key as any)}
+                        className={`flex flex-col items-start gap-2.5 p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                          theme === t.key
                             ? "border-primary bg-primary/5 text-primary shadow-sm shadow-primary/10"
                             : "border-border bg-muted/30 text-muted-foreground hover:bg-muted hover:border-muted-foreground/30"
                         }`}>
-                        {t.icon}
-                        <span className="text-sm font-medium">{t.label}</span>
-                        {themeMode === t.key && <Check size={14} />}
+                        <div className="flex items-center justify-between w-full">
+                          <div className={`p-2 rounded-lg ${t.key === "eye-care" ? "bg-amber-500/15 text-amber-600" : "bg-primary/15 text-primary"}`}>
+                            {t.icon}
+                          </div>
+                          {theme === t.key && <Check size={16} className="text-primary" />}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-semibold text-foreground">{t.label}</span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">{t.desc}</p>
+                          {t.badge && (
+                            <span className="mt-2 inline-block text-[9px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold">
+                              ✨ {t.badge}
+                            </span>
+                          )}
+                        </div>
                       </button>
                     ))}
                   </div>
