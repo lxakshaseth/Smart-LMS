@@ -317,6 +317,23 @@ export default function AITutor() {
   const [selectedImage, setSelectedImage] = useState<{ file: File; preview: string; name: string } | null>(null);
   const [ocrError, setOcrError]         = useState<string | null>(null);
   const fileInputRef                    = useRef<HTMLInputElement>(null);
+  const langMenuRef                     = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      if (langMenuRef.current && !langMenuRef.current.contains(e.target as Node)) {
+        setShowLangMenu(false);
+      }
+    };
+    if (showLangMenu) {
+      document.addEventListener("mousedown", handleOutsideClick);
+      document.addEventListener("touchstart", handleOutsideClick);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("touchstart", handleOutsideClick);
+    };
+  }, [showLangMenu]);
 
   useEffect(() => {
     const checkSidebarCollapse = () => {
@@ -705,10 +722,10 @@ export default function AITutor() {
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* Language Selector Dropdown */}
-            <div className="relative">
+            <div className="relative" ref={langMenuRef}>
               <button
                 onClick={() => setShowLangMenu(!showLangMenu)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-border text-xs font-medium hover:bg-muted transition-all select-none"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-border text-xs font-medium hover:bg-muted transition-all select-none cursor-pointer"
               >
                 <span>
                   <span className="sm:hidden">
@@ -723,31 +740,28 @@ export default function AITutor() {
               
               <AnimatePresence>
                 {showLangMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowLangMenu(false)} />
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-2xl shadow-2xl py-1.5 z-50 max-h-64 overflow-y-auto"
-                    >
-                      {LANGUAGES.map((lang) => (
-                        <button
-                          key={lang.code}
-                          onClick={() => {
-                            updateActiveLanguage(lang.code);
-                            setShowLangMenu(false);
-                          }}
-                          className={`flex items-center justify-between w-full px-4 py-2.5 text-left text-xs transition-colors hover:bg-muted
-                            ${(active?.language || "Auto-Detect") === lang.code ? "text-primary font-semibold bg-primary/5" : "text-foreground/80"}`}
-                        >
-                          <span>{lang.label}</span>
-                          {(active?.language || "Auto-Detect") === lang.code && <Check size={12} className="text-primary" />}
-                        </button>
-                      ))}
-                    </motion.div>
-                  </>
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-2xl shadow-2xl py-1.5 z-50 max-h-64 overflow-y-auto"
+                  >
+                    {LANGUAGES.map((lang) => (
+                      <button
+                        key={lang.code}
+                        onClick={() => {
+                          updateActiveLanguage(lang.code);
+                          setShowLangMenu(false);
+                        }}
+                        className={`flex items-center justify-between w-full px-4 py-2.5 text-left text-xs transition-colors hover:bg-muted cursor-pointer
+                          ${(active?.language || "Auto-Detect") === lang.code ? "text-primary font-semibold bg-primary/5" : "text-foreground/80"}`}
+                      >
+                        <span>{lang.label}</span>
+                        {(active?.language || "Auto-Detect") === lang.code && <Check size={12} className="text-primary" />}
+                      </button>
+                    ))}
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>
