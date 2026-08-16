@@ -3,9 +3,27 @@ import {
   LayoutDashboard, Bot, BookOpen, ClipboardList, Calendar,
   BarChart3, Library, Youtube, Settings, Menu, X, Upload,
   ChevronLeft, ChevronRight, Brain, FileText, Timer, Users, Code2,
+  Zap, Dna, Calculator, Shield, Train, Sparkles, FlaskConical
 } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+
+const getExamSpecialNavItem = (examStr: string) => {
+  const e = examStr.toLowerCase();
+  const param = encodeURIComponent(examStr);
+  if (e.includes("engineering")) return { path: "/codepilot", icon: Code2, label: "CodePilot AI" };
+  if (e.includes("jee")) return { path: `/exam-tools?exam=${param}`, icon: Zap, label: "Formula & Step Solver" };
+  if (e.includes("neet")) return { path: `/exam-tools?exam=${param}`, icon: Dna, label: "BioDiagram & NCERT AI" };
+  if (e.includes("gate")) return { path: `/exam-tools?exam=${param}`, icon: Calculator, label: "GATE Calculator & NAT" };
+  if (e.includes("cat")) return { path: `/exam-tools?exam=${param}`, icon: BarChart3, label: "DILR Matrix & Speed Math" };
+  if (e.includes("upsc")) return { path: `/exam-tools?exam=${param}`, icon: BookOpen, label: "Mains Answer Writing AI" };
+  if (e.includes("ssc") || e.includes("bank") || e.includes("ibps") || e.includes("sbi")) return { path: `/exam-tools?exam=${param}`, icon: Timer, label: "Banking Puzzle & Speed" };
+  if (e.includes("nda") || e.includes("cds")) return { path: `/exam-tools?exam=${param}`, icon: Shield, label: "SSB Prep Hub & Defense" };
+  if (e.includes("railway") || e.includes("rrb")) return { path: `/exam-tools?exam=${param}`, icon: Train, label: "RRB CBT Speed Master" };
+  if (e.includes("class 10")) return { path: `/exam-tools?exam=${param}`, icon: FileText, label: "Class 10 Board Suite" };
+  if (e.includes("class 12")) return { path: `/exam-tools?exam=${param}`, icon: FileText, label: "Class 12 Board Suite" };
+  return { path: `/exam-tools?exam=${param}`, icon: Sparkles, label: "Exam Special Suite" };
+};
 
 const navItems = [
   { path: "/",          icon: LayoutDashboard, label: "Dashboard"        },
@@ -63,24 +81,32 @@ export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed]   = useState(false);
 
-  const targetExam = (user?.exam || localStorage.getItem("targetExam") || "Engineering").toLowerCase();
-  
-  // CodePilot AI only displays for Engineering section
-  const isEngineeringSection =
-    targetExam.includes("engineering") ||
-    targetExam.includes("gate") ||
-    targetExam.includes("sppu") ||
-    targetExam.includes("computer") ||
-    targetExam.includes("coding") ||
-    targetExam.includes("software") ||
-    targetExam.includes("tech") ||
-    !user?.exam;
+  const targetExam = user?.exam || localStorage.getItem("targetExam") || "Engineering";
+  const param = encodeURIComponent(targetExam);
+  const isBoard = targetExam.toLowerCase().includes("class 10") || targetExam.toLowerCase().includes("class 12") || targetExam.toLowerCase().includes("board");
 
-  const filteredNavItems = navItems.filter((item) => {
+  const filteredNavItems: { path: string; icon: any; label: string }[] = [];
+
+  navItems.forEach((item) => {
     if (item.path === "/codepilot") {
-      return isEngineeringSection;
+      if (isBoard) {
+        const boardLabel = targetExam.toLowerCase().includes("class 10") ? "Class 10 Derivation Suite" : "Class 12 Derivation Suite";
+        filteredNavItems.push({
+          path: `/exam-tools?exam=${param}`,
+          icon: FileText,
+          label: boardLabel
+        });
+        filteredNavItems.push({
+          path: `/practical-lab?exam=${param}`,
+          icon: FlaskConical,
+          label: "3D Virtual Practical Lab"
+        });
+      } else {
+        filteredNavItems.push(getExamSpecialNavItem(targetExam));
+      }
+    } else {
+      filteredNavItems.push(item);
     }
-    return true;
   });
 
   const W_FULL = 256;
@@ -151,8 +177,9 @@ export function Sidebar() {
         {/* ── nav items ── */}
         <nav className={`flex flex-col gap-0.5 flex-1 overflow-y-auto py-4 ${collapsed ? "px-2" : "px-3"}`}>
           {filteredNavItems.map(item => {
-            const Icon     = item.icon;
-            const isActive = location.pathname === item.path;
+            const Icon           = item.icon;
+            const currentFullUrl = location.pathname + location.search;
+            const isActive       = currentFullUrl === item.path || (location.pathname === item.path && !item.path.includes("?"));
 
             return (
               <div key={item.path} className="relative group/tip">

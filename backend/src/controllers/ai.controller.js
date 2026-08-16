@@ -5,6 +5,7 @@ const Tesseract = require("tesseract.js");
 const fs = require("fs");
 const OpenAI = require("openai");
 const mongoose = require("mongoose");
+const { getCurrentTargetExam } = require("../utils/targetExam.utils");
 
 /* ===============================
    GROQ CONFIG
@@ -299,8 +300,8 @@ const getSingleChat = async (req, res) => {
 
 const askAI = async (req, res) => {
   try {
-    const { chatId, language = "Auto-Detect" } = req.body;
-    const question = req.body.question?.trim();
+    let { chatId, language = "Auto-Detect", targetExam: clientTargetExam } = req.body;
+    const question = (req.body.question || req.body.message || "").trim();
 
     if (!question)
       return res.status(400).json({
@@ -314,21 +315,25 @@ const askAI = async (req, res) => {
         message: "Question must be under 4000 characters"
       });
 
-    if (!mongoose.Types.ObjectId.isValid(chatId))
-      return res.status(400).json({
-        success: false,
-        message: "Invalid chat id"
-      });
+    const dbUser = await User.findById(req.user.id);
+    const activeTargetExam = getCurrentTargetExam(dbUser, clientTargetExam || "Class 10 Boards");
 
-    const chat = await Chat.findOne({
-      _id: chatId,
-      user: req.user.id
-    });
-    if (!chat)
-      return res.status(404).json({
-        success: false,
-        message: "Chat not found"
+    let chat = null;
+    if (chatId && mongoose.Types.ObjectId.isValid(chatId)) {
+      chat = await Chat.findOne({
+        _id: chatId,
+        user: req.user.id
       });
+    }
+
+    if (!chat) {
+      chat = await Chat.create({
+        user: req.user.id,
+        title: question.slice(0, 50) || "AI Discussion",
+        messages: [],
+        language
+      });
+    }
 
     chat.language = language;
     chat.messages.push({ role: "user", content: question });
@@ -347,7 +352,13 @@ const askAI = async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `You are Smart AI Mentor, an intelligent educational assistant capable of helping learners of all ages. Answer any academic, technical, programming, engineering, mathematics, science, language, research, project, interview, or career-related question clearly and accurately. Adapt explanations based on the user's question instead of assuming any class or educational level.
+          content: `You are Smart AI Mentor, an intelligent educational assistant capable of helping learners of all ages. Answer any academic, technical, programming, engineering, mathematics, science, language, research, project, interview, or career-related question clearly and accurately.
+
+Target Exam Context: ${activeTargetExam}
+
+EXAM TARGET REQUIREMENT:
+- The user is actively preparing for: ${activeTargetExam}.
+- Tailor your explanations, problem-solving methods, formula tricks, step-by-step depth, and study advice to match the syllabus and standards of ${activeTargetExam}.
 
 Preferred Response Language Setting: ${language}
 
@@ -387,6 +398,9 @@ Keep your answers clear, accurate, well-structured, helpful, and student-friendl
     res.json({
       success: true,
       reply,
+      answer: reply,
+      text: reply,
+      chatId: chat._id,
       xpEarned: earnedXP,
       level: user.level,
       rank: user.rank,
@@ -610,6 +624,119 @@ const ocrFromImage = async (req, res) => {
   }
 };
 
+const generateExamSpecialQuestion = async (req, res) => {
+  try {
+    const { targetExam = "Class 10 Boards", subject = "Physics" } = req.body;
+
+    const prompt = `You are a world-class exam author for ${targetExam}. Generate a brand new, unique, high-yield ${subject} question strictly aligned with the syllabus for ${targetExam}.
+IMPORTANT: Make sure the question is strictly for ${targetExam} and subject ${subject}. Do NOT mix up topics from other classes or exams!
+
+Return strictly valid JSON with this exact schema:
+{
+  "id": "q_${Date.now()}",
+  "targetExam": "${targetExam}",
+  "subject": "${subject}",
+  "topic": "Topic Name",
+  "marks": "5 Marks Question",
+  "questionTitle": "Clear, precise title of the question or derivation",
+  "diagramDescription": "Brief description of diagram or circuit or optics ray path",
+  "steps": [
+    {
+      "stepNum": 1,
+      "title": "Step 1 Title",
+      "formula": "Mathematical Formula / Key Equation",
+      "explanation": "Detailed explanation of this step",
+      "credit": "1.5 Marks"
+    },
+    {
+      "stepNum": 2,
+      "title": "Step 2 Title",
+      "formula": "Mathematical Formula / Key Equation",
+      "explanation": "Detailed explanation of this step",
+      "credit": "1.5 Marks"
+    },
+    {
+      "stepNum": 3,
+      "title": "Step 3 Title",
+      "formula": "Mathematical Formula / Key Equation",
+      "explanation": "Detailed explanation of this step",
+      "credit": "1.0 Mark"
+    },
+    {
+      "stepNum": 4,
+      "title": "Step 4 Title",
+      "formula": "Mathematical Formula / Key Equation",
+      "explanation": "Detailed explanation of this step",
+      "credit": "1.0 Mark"
+    }
+  ],
+  "examinerAlerts": [
+    "⚠️ Warning about common mistake that loses marks",
+    "💡 Examiner key tip to get full marks"
+  ]
+}
+DO NOT include any text before or after the JSON.`;
+
+    const response = await safeGroqCall({
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      max_tokens: 1500
+    });
+
+    const reply = response.choices[0]?.message?.content || "";
+    let questionData;
+    try {
+      const cleaned = reply.replace(/```json/gi, "").replace(/```/g, "").trim();
+      questionData = JSON.parse(cleaned);
+    } catch {
+      questionData = {
+        id: `q_${Date.now()}`,
+        targetExam,
+        subject,
+        topic: `${subject} Core Problem`,
+        marks: "5 Marks Question",
+        questionTitle: `Dynamic ${targetExam} ${subject} Problem`,
+        diagramDescription: `Circuit / Diagram representation for ${subject}`,
+        steps: [
+          {
+            stepNum: 1,
+            title: "Step 1: Statement & Formula",
+            formula: "Core Formula Definition",
+            explanation: "Initial problem formulation and variable definitions.",
+            credit: "1.5 Marks"
+          },
+          {
+            stepNum: 2,
+            title: "Step 2: Substitution & Calculation",
+            formula: "Substituted Values & Step Simplification",
+            explanation: "Applying principles to simplify equations.",
+            credit: "1.5 Marks"
+          },
+          {
+            stepNum: 3,
+            title: "Step 3: Final Answer & Units",
+            formula: "Final Result Boxed",
+            explanation: "Final result with standard SI units.",
+            credit: "2.0 Marks"
+          }
+        ],
+        examinerAlerts: [
+          "⚠️ Always write SI units in final answers to avoid mark loss.",
+          "💡 Underline final values and write step numbers clearly."
+        ]
+      };
+    }
+
+    res.json({
+      success: true,
+      question: questionData
+    });
+  } catch (error) {
+    console.error("EXAM SPECIAL AI ERROR:", error);
+    res.status(500).json({ success: false, message: error.message || "Failed to generate question" });
+  }
+};
+
 module.exports = {
   safeGroqCall,
   askAI,
@@ -618,5 +745,6 @@ module.exports = {
   ocrFromImage,
   createNewChat,
   getSessions,
-  getSingleChat
+  getSingleChat,
+  generateExamSpecialQuestion
 };

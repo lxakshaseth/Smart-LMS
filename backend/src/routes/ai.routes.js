@@ -13,7 +13,8 @@ const {
   ocrFromImage,
   createNewChat,
   getSessions,
-  getSingleChat
+  getSingleChat,
+  generateExamSpecialQuestion
 } = require("../controllers/ai.controller");
 
 const { protect } = require("../middleware/auth.middleware");
@@ -57,6 +58,9 @@ router.get("/chat/:id", protect, getSingleChat);
 
 // Ask AI
 router.post("/ask", protect, askAI);
+
+// Generate Exam Special Question via Groq AI Pipeline
+router.post("/exam-special", protect, generateExamSpecialQuestion);
 
 // ============================
 // STUDY SYSTEM

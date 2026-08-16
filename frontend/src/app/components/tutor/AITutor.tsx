@@ -5,11 +5,13 @@ import {
   X, Check, GripVertical, Sparkles, BookOpen, Lightbulb,
   Clock, MessageSquare, Copy, ThumbsUp, ThumbsDown,
   RotateCcw, ChevronDown, AlertCircle, Code, Terminal, FileText, Cpu, HelpCircle,
-  Loader2,
+  Loader2, Target, FlaskConical, Atom, Dna, Calculator, BarChart3, Shield, Train,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { apiRequest } from "../../lib/api";
 import { renderMarkdown } from "../../lib/renderMarkdown";
+import { useAuth } from "../../context/AuthContext";
+import { getCurrentTargetExam, setCurrentTargetExam, EXAM_OPTIONS, getExamPrompts } from "../../lib/targetExam";
 
 /* ═══════════════════════════════════════
    TYPES
@@ -291,20 +293,34 @@ function MsgBubble({ msg }: { msg: Message }) {
 /* ═══════════════════════════════════════
    MAIN
 ═══════════════════════════════════════ */
-const quickPrompts = [
-  { icon: <Lightbulb size={14} />, text: "Explain Newton's Laws with examples" },
-  { icon: <Code size={14} />,      text: "Build a MERN authentication system" },
-  { icon: <Cpu size={14} />,       text: "Difference between Machine Learning and Deep Learning" },
-  { icon: <Terminal size={14} />,  text: "Explain Binary Search" },
-  { icon: <BookOpen size={14} />,  text: "Solve this calculus problem" },
-  { icon: <FileText size={14} />,  text: "Summarize my uploaded PDF" },
-  { icon: <HelpCircle size={14} />,text: "Prepare me for Java interviews" },
-  { icon: <Cpu size={14} />,       text: "Explain Operating Systems" },
-  { icon: <Terminal size={14} />,  text: "Generate SQL queries" },
-  { icon: <Code size={14} />,      text: "Help me write Python code" },
-];
+const renderPromptIcon = (iconType: string) => {
+  switch (iconType) {
+    case "Lightbulb":    return <Lightbulb size={14} />;
+    case "Code":         return <Code size={14} />;
+    case "Cpu":          return <Cpu size={14} />;
+    case "Terminal":     return <Terminal size={14} />;
+    case "BookOpen":     return <BookOpen size={14} />;
+    case "FileText":     return <FileText size={14} />;
+    case "HelpCircle":   return <HelpCircle size={14} />;
+    case "Sparkles":     return <Sparkles size={14} />;
+    case "Target":       return <Target size={14} />;
+    case "FlaskConical": return <FlaskConical size={14} />;
+    case "Atom":         return <Atom size={14} />;
+    case "Dna":          return <Dna size={14} />;
+    case "Calculator":   return <Calculator size={14} />;
+    case "BarChart3":    return <BarChart3 size={14} />;
+    case "Shield":       return <Shield size={14} />;
+    case "Train":        return <Train size={14} />;
+    default:             return <Sparkles size={14} />;
+  }
+};
 
 export default function AITutor() {
+  const { user, updateUser } = useAuth();
+  const [targetExam, setTargetExamState] = useState<string>(() => getCurrentTargetExam(user));
+  const [showExamMenu, setShowExamMenu] = useState(false);
+  const examMenuRef = useRef<HTMLDivElement>(null);
+
   const [convs, setConvs]         = useState<Conversation[]>(seedConvs);
   const [activeId, setActiveId]   = useState(seedConvs[0].id);
   const [input, setInput]         = useState("");
@@ -319,13 +335,24 @@ export default function AITutor() {
   const fileInputRef                    = useRef<HTMLInputElement>(null);
   const langMenuRef                     = useRef<HTMLDivElement>(null);
 
+  const handleSetTargetExam = (newExam: string) => {
+    setTargetExamState(newExam);
+    setCurrentTargetExam(newExam);
+    if (updateUser) {
+      updateUser({ exam: newExam });
+    }
+  };
+
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
       if (langMenuRef.current && !langMenuRef.current.contains(e.target as Node)) {
         setShowLangMenu(false);
       }
+      if (examMenuRef.current && !examMenuRef.current.contains(e.target as Node)) {
+        setShowExamMenu(false);
+      }
     };
-    if (showLangMenu) {
+    if (showLangMenu || showExamMenu) {
       document.addEventListener("mousedown", handleOutsideClick);
       document.addEventListener("touchstart", handleOutsideClick);
     }
@@ -333,7 +360,7 @@ export default function AITutor() {
       document.removeEventListener("mousedown", handleOutsideClick);
       document.removeEventListener("touchstart", handleOutsideClick);
     };
-  }, [showLangMenu]);
+  }, [showLangMenu, showExamMenu]);
 
   useEffect(() => {
     const checkSidebarCollapse = () => {
@@ -552,6 +579,7 @@ export default function AITutor() {
           chatId: serverChatId,
           question,
           language: active?.language || "Auto-Detect",
+          targetExam,
         }),
       });
       const reply: Message = {
@@ -721,6 +749,49 @@ export default function AITutor() {
             <p className="text-xs text-muted-foreground">AI Mentor · Universal AI Study Assistant</p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Target Exam Dropdown */}
+            <div className="relative" ref={examMenuRef}>
+              <button
+                onClick={() => setShowExamMenu(!showExamMenu)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-semibold hover:bg-primary/20 transition-all select-none cursor-pointer"
+                title="Change Target Exam"
+              >
+                <Target size={13} className="text-primary" />
+                <span className="truncate max-w-[100px] sm:max-w-[150px]">{targetExam}</span>
+                <ChevronDown size={12} className={`text-primary transition-transform duration-200 ${showExamMenu ? "rotate-180" : ""}`} />
+              </button>
+
+              <AnimatePresence>
+                {showExamMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 mt-2 w-52 bg-card border border-border rounded-2xl shadow-2xl py-1.5 z-50 max-h-64 overflow-y-auto"
+                  >
+                    <div className="px-3 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border mb-1">
+                      Target Exam
+                    </div>
+                    {EXAM_OPTIONS.map((exam) => (
+                      <button
+                        key={exam}
+                        onClick={() => {
+                          handleSetTargetExam(exam);
+                          setShowExamMenu(false);
+                        }}
+                        className={`flex items-center justify-between w-full px-4 py-2.5 text-left text-xs transition-colors hover:bg-muted cursor-pointer
+                          ${targetExam === exam ? "text-primary font-bold bg-primary/10" : "text-foreground/80"}`}
+                      >
+                        <span>{exam}</span>
+                        {targetExam === exam && <Check size={12} className="text-primary" />}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             {/* Language Selector Dropdown */}
             <div className="relative" ref={langMenuRef}>
               <button
@@ -793,12 +864,22 @@ export default function AITutor() {
                 <h2 className="text-xl font-bold">How can I help you today?</h2>
                 <p className="text-sm text-muted-foreground mt-1">Ask me any question — explanations, coding, summaries, interview prep, or problem solving.</p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-4">
-                {quickPrompts.map(q => (
+
+              {/* Target Exam Badge Banner */}
+              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 rounded-2xl bg-primary/5 border border-primary/20 text-xs shadow-xs">
+                <div className="flex items-center gap-2 font-medium text-foreground">
+                  <Target size={15} className="text-primary" />
+                  <span>Target Exam Feed: <span className="font-bold text-primary underline decoration-primary/30 underline-offset-4">{targetExam}</span></span>
+                </div>
+                <span className="text-[11px] text-muted-foreground">Showing 8 tailored prompts</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-3">
+                {getExamPrompts(targetExam).map(q => (
                   <button key={q.text} onClick={() => { setInput(q.text); textareaRef.current?.focus(); }}
-                    className="flex items-center gap-2.5 px-4 py-3 rounded-2xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 text-left text-xs font-medium transition-all group">
-                    <span className="text-primary group-hover:scale-110 transition-transform">{q.icon}</span>
-                    {q.text}
+                    className="flex items-center gap-2.5 px-4 py-3 rounded-2xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 text-left text-xs font-medium transition-all group cursor-pointer">
+                    <span className="text-primary group-hover:scale-110 transition-transform">{renderPromptIcon(q.iconType)}</span>
+                    <span className="line-clamp-2">{q.text}</span>
                   </button>
                 ))}
               </div>

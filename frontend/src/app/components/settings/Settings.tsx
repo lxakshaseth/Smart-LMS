@@ -495,7 +495,7 @@ export default function Settings() {
       {/* ── top sticky settings navbar ── */}
       <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border">
         {/* page title row */}
-        <div className="px-6 pt-5 pb-3 flex items-center justify-between">
+        <div className="px-4 sm:px-6 pt-3 pb-3 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
             <p className="text-xs text-muted-foreground mt-0.5">

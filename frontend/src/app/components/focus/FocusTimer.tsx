@@ -225,7 +225,7 @@ export default function FocusTimer() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-3 pb-8 space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* ── left: timer ── */}

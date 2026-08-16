@@ -1073,7 +1073,7 @@ export default function CriticalThinking() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-3 pb-8 space-y-6">
 
         {/* ── TABS ── */}
         <div className="flex gap-1 bg-muted/50 rounded-2xl p-1 w-fit">

@@ -387,7 +387,7 @@ export default function Books() {
   /* ── landing ── */
   if (!activeCategory) {
     return (
-      <div className="p-6 max-w-5xl mx-auto">
+      <div className="px-4 sm:px-6 pt-3 pb-8 max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Library</h1>
           <p className="text-muted-foreground mt-1">Choose your learning category</p>
@@ -431,7 +431,7 @@ export default function Books() {
 
   /* ── detail view ── */
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="px-4 sm:px-6 pt-3 pb-8 max-w-7xl mx-auto space-y-6">
       {/* header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">

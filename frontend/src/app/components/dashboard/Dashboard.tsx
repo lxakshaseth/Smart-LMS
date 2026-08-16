@@ -121,7 +121,7 @@ export default function Dashboard() {
       variants={staggerContainer}
       initial="hidden"
       animate="visible"
-      className="min-h-screen bg-background p-4 sm:p-6 md:p-8 space-y-6 max-w-7xl mx-auto"
+      className="min-h-screen bg-background px-4 sm:px-6 pt-3 pb-8 space-y-6 max-w-7xl mx-auto"
     >
       {/* 1. Hero Greeting Banner */}
       <motion.div variants={riseUp}>

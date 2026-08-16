@@ -83,7 +83,7 @@ export function Navbar() {
   const CurrentIcon = currentThemeIcon;
 
   return (
-    <nav className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border pl-14 sm:pl-16 pr-3 sm:pr-6 py-2.5 sm:py-4 flex items-center justify-between gap-2 sm:gap-4 lg:px-6">
+    <nav className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border pl-14 sm:pl-16 pr-3 sm:pr-6 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-4 lg:px-6">
       {/* search */}
       <div className="flex-1 max-w-xl min-w-0">
         <div className="relative">

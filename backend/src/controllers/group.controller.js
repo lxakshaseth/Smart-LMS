@@ -682,7 +682,8 @@ exports.getGroupMessages = async (req, res) => {
 
     const formattedMessages = messages.map((msg) => {
       // Calculate delivery tick status for sender
-      const isSender = msg.sender._id.toString() === currentUserId;
+      const senderIdStr = msg.sender?._id ? msg.sender._id.toString() : msg.sender ? msg.sender.toString() : "";
+      const isSender = senderIdStr === currentUserId;
       let status = "sent";
 
       if (isSender) {
@@ -700,12 +701,14 @@ exports.getGroupMessages = async (req, res) => {
         }
       }
 
+      const senderName = msg.sender?.name || msg.sender?.username || "LMS User";
+
       return {
         id: msg._id.toString(),
         groupId: msg.groupId.toString(),
-        senderId: msg.sender._id.toString(),
-        senderName: msg.sender.name || msg.sender.username || "LMS User",
-        senderAvatar: (msg.sender.name || msg.sender.username || "LU")
+        senderId: senderIdStr,
+        senderName,
+        senderAvatar: (senderName || "LU")
           .trim()
           .split(/\s+/)
           .map((w) => w[0])
