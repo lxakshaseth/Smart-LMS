@@ -2,6 +2,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "react-router";
 import { Bot, X, Send, GripHorizontal, Minus, Maximize2, Minimize2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { useAuth } from "../../context/AuthContext";
+import { getCurrentTargetExam, getExamPrompts } from "../../lib/targetExam";
 
 interface Msg { role: "user" | "assistant"; text: string; time: string }
 
@@ -141,7 +143,9 @@ export function FloatingAssistant() {
     setMin(false);
   };
 
-  const quickPicks = ["Explain Newton's Laws", "JEE tip of the day", "Create a quiz for me", "Plan my study day"];
+  const { user }              = useAuth();
+  const targetExam            = getCurrentTargetExam(user);
+  const quickPicks            = getExamPrompts(targetExam).slice(0, 4).map(p => p.text);
 
   return (
     <>

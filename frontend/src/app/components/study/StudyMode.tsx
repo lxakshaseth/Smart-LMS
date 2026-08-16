@@ -573,7 +573,7 @@ export default function StudyMode() {
   const outputName = (kind: string) => `${kind}-${safeFilePart(topic)}.txt`;
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="px-4 sm:px-6 pt-3 pb-8 max-w-7xl mx-auto space-y-6">
       {/* header */}
       <div className="flex items-start justify-between gap-4">
         <div>

@@ -96,8 +96,10 @@ async function generateStructuredResponse(prompt) {
 // =====================================================
 async function solveQuestion(question) {
   try {
+    const client = getGroqClient();
+    const model = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
     const response = await client.chat.completions.create({
-      model: getModel(),
+      model,
       messages: [
         {
           role: "system",

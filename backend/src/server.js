@@ -30,6 +30,7 @@ const codepilotRoutes = require("./routes/codepilot.routes");
 const FriendMessage = require("./models/friendMessage.model");
 const Group = require("./models/group.model");
 const GroupMessage = require("./models/groupMessage.model");
+const User = require("./models/user.model");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;

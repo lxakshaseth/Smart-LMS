@@ -697,6 +697,7 @@ const getUserCodePilotStats = async (req, res) => {
 
     const streak = user?.streak || 0;
     const xp = user?.xp || 0;
+    const level = user?.level || 1;
 
     let globalRank = "#1";
     if (user && xp > 0) {

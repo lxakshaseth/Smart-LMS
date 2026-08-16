@@ -17,6 +17,8 @@ import Notes from "./components/notes/Notes";
 import FocusTimer from "./components/focus/FocusTimer";
 import Friends from "./components/friends/Friends";
 import CodePilotContainer from "./components/codepilot/CodePilotContainer";
+import ExamSpecialTools from "./components/exam-tools/ExamSpecialTools";
+import VirtualPracticalLab from "./components/exam-tools/VirtualPracticalLab";
 
 export const router = createBrowserRouter([
   {
@@ -36,6 +38,9 @@ export const router = createBrowserRouter([
       { path: "study", element: <StudyMode /> },
       { path: "codepilot", element: <CodePilotContainer /> },
       { path: "codepilot/*", element: <CodePilotContainer /> },
+      { path: "exam-tools", element: <ExamSpecialTools /> },
+      { path: "exam-tools/*", element: <ExamSpecialTools /> },
+      { path: "practical-lab", element: <VirtualPracticalLab /> },
       { path: "quiz", element: <Quiz /> },
       { path: "planner", element: <Planner /> },
       { path: "analytics", element: <Analytics /> },

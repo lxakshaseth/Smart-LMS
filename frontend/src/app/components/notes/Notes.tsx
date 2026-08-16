@@ -852,7 +852,7 @@ function FriendNotes({ prefillShare }: { prefillShare?: { title: string; content
   const activePartnerList = Array.from(new Set(sharedNotes.map(n => n.isIncoming ? n.senderName : n.receiverName).filter(Boolean)));
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="px-4 sm:px-6 pt-3 pb-12 max-w-7xl mx-auto space-y-6">
       {/* 🌟 GOOGLE DRIVE / PHOTOS STYLE TOP HEADER */}
       <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-card via-card/90 to-emerald-500/5 border border-border shadow-xl backdrop-blur-xl space-y-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
