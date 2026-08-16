@@ -27,16 +27,27 @@ Smart-LMS is structured into **10 core feature domains**:
 ```
                                   Smart-LMS Platform
                                           │
-    ┌────────────────┬────────────────────┼────────────────────┬────────────────┐
-    │                │                    │                    │                │
-🤖 AI Tutor    💻 CodePilot        📄 OCR & Study        🧠 Gamification   📅 AI Planner
-    │                │                    │                    │                │
+    ┌────────────────┬────────────────────┼────────────────────┬────────────────────────┐
+    │                │                    │                    │                        │
+🤖 AI Tutor    💻 CodePilot        🔬 Virtual Practical 📄 OCR & Study       🧠 Gamification
+    │                │                    │                    │                        │
 💬 WebRTC Chat 📊 Analytics        🎥 YouTube Hub        ⏱️ Focus Timer   📚 Book Library
 ```
 
 ---
 
-### 1. 🤖 AI Tutor & Automated Problem Solver
+### 1. 🔬 3D Virtual Practical Laboratory & AI Doubt Solver
+* **100% Official CBSE Syllabus Coverage**: Complete interactive lab simulator covering 100% of official CBSE Class 10 and Class 12 Science practicals (36 Class 12 + 16 Class 10 experiments across Physics, Chemistry, and Biology).
+* **Interactive 3D/2.5D Visual Apparatus Stages**: Dedicated custom visual workbench for every experiment:
+  * **Physics**: Meter Bridge 100cm wire board with sliding jockey, Potentiometer 4-meter wire board with Leclanche/Daniel cells, Galvanometer Half-Deflection & Voltmeter/Ammeter Conversion circuits, Logic Gate IC Trainer Board with live binary switches, Prism VIBGYOR rainbow spectrum, Optical bench $u\text{-}v$ rails, Sonometer AC mains resonance, p-n Diode & Zener Voltage Regulator.
+  * **Chemistry**: Titration Burette & Flask with live pH color transition, 0-14 pH Paper Spectrum Chart, Qualitative Salt Analysis Cation/Anion Flame & Test Tube Matrix (Brown Ring test, $\text{PbI}_2$ yellow ppt, $\text{AgCl}$ white ppt), Organic Functional Group reaction diagrams (Tollen's Silver Mirror, Fehling's red ppt, Biuret test).
+  * **Biology**: $400\times / 1000\times$ Compound Microscope Lens View (Onion Root Tip Mitosis, Stomata Guard Cells, Pollen Germination, Mammalian Gametes), $1\text{m}\times 1\text{m}$ Ecology Quadrat Grid, and Spooled Plant DNA threads.
+* **Dynamic AI Practical Doubt Solver**: Pre-populated, experiment-tailored question chips and instant AI practical solutions rendered with rich markdown typography, bold badges, numbered steps, and equations.
+* **Digital Laboratory Observation Table**: Adjustable real-time apparatus variable sliders, step-by-step procedure guides, and 1-click observation recording.
+
+---
+
+### 2. 🤖 AI Tutor & Automated Problem Solver
 * **Step-by-Step Explanations**: Instant step-by-step problem breakdown across Mathematics, Physics, Chemistry, Computer Science, and Humanities.
 * **Multi-Mode Assistance**: Toggle between **Hint Mode** (guided discovery), **Step-by-Step** (detailed walkthrough), and **Direct Answer** (full solution).
 * **Rich Markdown & LaTeX**: Full rendering of mathematical formulas, code blocks with syntax highlighting, and chemical equations.
