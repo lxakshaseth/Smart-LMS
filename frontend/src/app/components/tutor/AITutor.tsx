@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useLocation } from "react-router";
 import {
   Send, ImageIcon, Bot, User, Pin, Trash2, Pencil,
   ChevronLeft, Plus, Search, MoreHorizontal,
@@ -6,6 +7,7 @@ import {
   Clock, MessageSquare, Copy, ThumbsUp, ThumbsDown,
   RotateCcw, ChevronDown, AlertCircle, Code, Terminal, FileText, Cpu, HelpCircle,
   Loader2, Target, FlaskConical, Atom, Dna, Calculator, BarChart3, Shield, Train,
+  Paperclip, FileUp
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { apiRequest } from "../../lib/api";
@@ -16,6 +18,17 @@ import { getCurrentTargetExam, setCurrentTargetExam, EXAM_OPTIONS, getExamPrompt
 /* ═══════════════════════════════════════
    TYPES
 ═══════════════════════════════════════ */
+export interface AttachmentItem {
+  id: string;
+  name: string;
+  type: "pdf" | "image" | "text" | "file";
+  size: number;
+  extractedText?: string;
+  previewUrl?: string;
+  loading?: boolean;
+  error?: string;
+}
+
 interface Message {
   id: string;
   role: "user" | "assistant";
@@ -23,6 +36,7 @@ interface Message {
   timestamp: Date;
   streaming?: boolean;
   error?: boolean;
+  attachments?: AttachmentItem[];
 }
 
 interface Conversation {
@@ -42,6 +56,12 @@ interface ServerMessage {
   role: "user" | "assistant";
   content: string;
   createdAt?: string;
+  attachments?: Array<{
+    name: string;
+    type: string;
+    size: number;
+    extractedText?: string;
+  }>;
 }
 
 interface ServerChat {
@@ -53,6 +73,7 @@ interface ServerChat {
 }
 
 const uid = () => Math.random().toString(36).slice(2, 9);
+const fmtSize = (b: number) => (b < 1048576 ? `${(b / 1024).toFixed(1)} KB` : `${(b / 1048576).toFixed(1)} MB`);
 const fmtTime = (d: Date) => {
   const diff = (Date.now() - d.getTime()) / 1000;
   if (diff < 60)    return "Just now";
@@ -235,7 +256,20 @@ function MsgBubble({ msg }: { msg: Message }) {
     return (
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
         className="flex justify-end gap-3 group">
-        <div className="max-w-[78%]">
+        <div className="max-w-[80%] flex flex-col items-end">
+          {msg.attachments && msg.attachments.length > 0 && (
+            <div className="flex flex-wrap justify-end gap-2 mb-2">
+              {msg.attachments.map((att, idx) => (
+                <div key={idx} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-card border border-border text-xs text-foreground shadow-xs">
+                  {att.type === "pdf" ? <FileText size={14} className="text-red-500 flex-shrink-0" /> :
+                   att.type === "image" ? <ImageIcon size={14} className="text-blue-500 flex-shrink-0" /> :
+                   <FileText size={14} className="text-green-500 flex-shrink-0" />}
+                  <span className="font-semibold truncate max-w-[150px]">{att.name}</span>
+                  <span className="text-[10px] text-muted-foreground">({fmtSize(att.size)})</span>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="bg-primary text-primary-foreground px-4 py-3 rounded-2xl rounded-br-sm text-sm leading-relaxed shadow-md shadow-primary/20">
             {msg.content}
           </div>
@@ -316,10 +350,9 @@ const renderPromptIcon = (iconType: string) => {
 };
 
 export default function AITutor() {
-  const { user, updateUser } = useAuth();
-  const [targetExam, setTargetExamState] = useState<string>(() => getCurrentTargetExam(user));
-  const [showExamMenu, setShowExamMenu] = useState(false);
-  const examMenuRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+  const { user } = useAuth();
+  const [targetExam] = useState<string>(() => getCurrentTargetExam(user));
 
   const [convs, setConvs]         = useState<Conversation[]>(seedConvs);
   const [activeId, setActiveId]   = useState(seedConvs[0].id);
@@ -329,30 +362,40 @@ export default function AITutor() {
   const [collapsed, setCollapsed] = useState(false);
   const [search, setSearch]       = useState("");
   const [showLangMenu, setShowLangMenu] = useState(false);
-  const [ocrLoading, setOcrLoading]     = useState(false);
-  const [selectedImage, setSelectedImage] = useState<{ file: File; preview: string; name: string } | null>(null);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const [ocrError, setOcrError]         = useState<string | null>(null);
-  const fileInputRef                    = useRef<HTMLInputElement>(null);
+  const imageInputRef                   = useRef<HTMLInputElement>(null);
+  const docInputRef                     = useRef<HTMLInputElement>(null);
   const langMenuRef                     = useRef<HTMLDivElement>(null);
+  const attachMenuRef                   = useRef<HTMLDivElement>(null);
 
-  const handleSetTargetExam = (newExam: string) => {
-    setTargetExamState(newExam);
-    setCurrentTargetExam(newExam);
-    if (updateUser) {
-      updateUser({ exam: newExam });
+  // Check router state for attached file from Upload Material page
+  useEffect(() => {
+    if (location.state?.attachment) {
+      const att = location.state.attachment;
+      setAttachments(prev => [...prev, {
+        id: uid(),
+        name: att.name,
+        type: att.kind === "pdf" ? "pdf" : att.kind === "image" ? "image" : "text",
+        size: att.size || 100000,
+        extractedText: att.extractedText || "",
+        loading: false,
+      }]);
+      setInput("Please summarize and explain this uploaded material, and answer any key questions from it.");
     }
-  };
+  }, [location.state]);
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
       if (langMenuRef.current && !langMenuRef.current.contains(e.target as Node)) {
         setShowLangMenu(false);
       }
-      if (examMenuRef.current && !examMenuRef.current.contains(e.target as Node)) {
-        setShowExamMenu(false);
+      if (attachMenuRef.current && !attachMenuRef.current.contains(e.target as Node)) {
+        setShowAttachMenu(false);
       }
     };
-    if (showLangMenu || showExamMenu) {
+    if (showLangMenu || showAttachMenu) {
       document.addEventListener("mousedown", handleOutsideClick);
       document.addEventListener("touchstart", handleOutsideClick);
     }
@@ -360,7 +403,7 @@ export default function AITutor() {
       document.removeEventListener("mousedown", handleOutsideClick);
       document.removeEventListener("touchstart", handleOutsideClick);
     };
-  }, [showLangMenu, showExamMenu]);
+  }, [showLangMenu, showAttachMenu]);
 
   useEffect(() => {
     const checkSidebarCollapse = () => {
@@ -380,60 +423,85 @@ export default function AITutor() {
 
   const active = convs.find(c => c.id === activeId)!;
 
-  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      setOcrError("Image size must be under 5MB");
-      return;
-    }
-
-    const previewUrl = URL.createObjectURL(file);
-    setSelectedImage({ file, preview: previewUrl, name: file.name });
+    const fileList = Array.from(files);
     setOcrError(null);
-    setOcrLoading(true);
 
-    try {
-      const formData = new FormData();
-      formData.append("image", file);
-
-      const res = await apiRequest<{ success: boolean; text: string; message?: string }>("/ai/ocr", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (res.success && res.text) {
-        setInput(prev =>
-          prev
-            ? `${prev}\n\n[Extracted Text from Image (${file.name})]:\n${res.text}`
-            : `[Extracted Text from Image (${file.name})]:\n${res.text}`
-        );
-
-        setTimeout(() => {
-          if (textareaRef.current) {
-            textareaRef.current.focus();
-            textareaRef.current.style.height = "auto";
-            textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 120) + "px";
-          }
-        }, 50);
-      } else {
-        setOcrError(res.message || "No readable text found in image.");
+    for (const file of fileList) {
+      if (file.size > 20 * 1024 * 1024) {
+        setOcrError(`File "${file.name}" exceeds 20MB size limit.`);
+        continue;
       }
-    } catch (err) {
-      setOcrError(err instanceof Error ? err.message : "Failed to extract text from image.");
-    } finally {
-      setOcrLoading(false);
-      if (e.target) e.target.value = "";
+
+      const tempId = uid();
+      const isImg = file.type.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif)$/i.test(file.name);
+      const isPdf = file.type.includes("pdf") || file.name.toLowerCase().endsWith(".pdf");
+      const previewUrl = isImg ? URL.createObjectURL(file) : undefined;
+
+      const newItem: AttachmentItem = {
+        id: tempId,
+        name: file.name,
+        type: isPdf ? "pdf" : isImg ? "image" : "text",
+        size: file.size,
+        previewUrl,
+        loading: true,
+      };
+
+      setAttachments(prev => [...prev, newItem]);
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await apiRequest<{
+          success: boolean;
+          attachment?: {
+            name: string;
+            type: string;
+            size: number;
+            extractedText: string;
+          };
+          message?: string;
+        }>("/ai/process-attachment", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (res.success && res.attachment) {
+          setAttachments(prev => prev.map(item => item.id === tempId ? {
+            ...item,
+            loading: false,
+            extractedText: res.attachment?.extractedText || "",
+            type: (res.attachment?.type as any) || item.type,
+          } : item));
+        } else {
+          setAttachments(prev => prev.map(item => item.id === tempId ? {
+            ...item,
+            loading: false,
+            error: res.message || "Failed to process file",
+          } : item));
+        }
+      } catch (err) {
+        setAttachments(prev => prev.map(item => item.id === tempId ? {
+          ...item,
+          loading: false,
+          error: err instanceof Error ? err.message : "Error processing file",
+        } : item));
+      }
     }
+
+    if (e.target) e.target.value = "";
   };
 
-  const clearSelectedImage = () => {
-    if (selectedImage?.preview) {
-      URL.revokeObjectURL(selectedImage.preview);
-    }
-    setSelectedImage(null);
-    setOcrError(null);
+  const removeAttachment = (id: string) => {
+    setAttachments(prev => {
+      const target = prev.find(a => a.id === id);
+      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter(a => a.id !== id);
+    });
   };
 
   const updateActiveLanguage = (lang: string) => {
@@ -475,6 +543,13 @@ export default function AITutor() {
               role: message.role,
               content: message.content,
               timestamp: message.createdAt ? new Date(message.createdAt) : fallbackTime,
+              attachments: message.attachments?.map(att => ({
+                id: uid(),
+                name: att.name,
+                type: (att.type as any) || "file",
+                size: att.size || 0,
+                extractedText: att.extractedText || "",
+              })),
             }));
             const lastMessage = messages[messages.length - 1];
 
@@ -531,16 +606,22 @@ export default function AITutor() {
 
   /* send */
   const send = async () => {
-    if (!input.trim() || typing || !active) return;
+    const validAttachments = attachments.filter(a => !a.loading && !a.error);
+    const canSend = Boolean(input.trim() || validAttachments.length > 0);
 
-    const question = input.trim();
+    if (!canSend || typing || !active) return;
+
+    const rawQuestion = input.trim();
+    const question = rawQuestion || (validAttachments.length > 0 ? "Please summarize and explain the attached material." : "");
     const localConversationId = activeId;
     const isDraft = active.isDraft;
+
     const userMsg: Message = {
       id: uid(),
       role: "user",
       content: question,
       timestamp: new Date(),
+      attachments: validAttachments.length > 0 ? validAttachments : undefined,
     };
 
     setConvs((current) => current.map((conversation) =>
@@ -554,6 +635,7 @@ export default function AITutor() {
         : conversation
     ));
     setInput("");
+    setAttachments([]);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     setTyping(true);
 
@@ -580,6 +662,12 @@ export default function AITutor() {
           question,
           language: active?.language || "Auto-Detect",
           targetExam,
+          attachments: validAttachments.map(a => ({
+            name: a.name,
+            type: a.type,
+            size: a.size,
+            extractedText: a.extractedText || "",
+          })),
         }),
       });
       const reply: Message = {
@@ -749,49 +837,6 @@ export default function AITutor() {
             <p className="text-xs text-muted-foreground">AI Mentor · Universal AI Study Assistant</p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Target Exam Dropdown */}
-            <div className="relative" ref={examMenuRef}>
-              <button
-                onClick={() => setShowExamMenu(!showExamMenu)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-semibold hover:bg-primary/20 transition-all select-none cursor-pointer"
-                title="Change Target Exam"
-              >
-                <Target size={13} className="text-primary" />
-                <span className="truncate max-w-[100px] sm:max-w-[150px]">{targetExam}</span>
-                <ChevronDown size={12} className={`text-primary transition-transform duration-200 ${showExamMenu ? "rotate-180" : ""}`} />
-              </button>
-
-              <AnimatePresence>
-                {showExamMenu && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 mt-2 w-52 bg-card border border-border rounded-2xl shadow-2xl py-1.5 z-50 max-h-64 overflow-y-auto"
-                  >
-                    <div className="px-3 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border mb-1">
-                      Target Exam
-                    </div>
-                    {EXAM_OPTIONS.map((exam) => (
-                      <button
-                        key={exam}
-                        onClick={() => {
-                          handleSetTargetExam(exam);
-                          setShowExamMenu(false);
-                        }}
-                        className={`flex items-center justify-between w-full px-4 py-2.5 text-left text-xs transition-colors hover:bg-muted cursor-pointer
-                          ${targetExam === exam ? "text-primary font-bold bg-primary/10" : "text-foreground/80"}`}
-                      >
-                        <span>{exam}</span>
-                        {targetExam === exam && <Check size={12} className="text-primary" />}
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
             {/* Language Selector Dropdown */}
             <div className="relative" ref={langMenuRef}>
               <button
@@ -865,15 +910,6 @@ export default function AITutor() {
                 <p className="text-sm text-muted-foreground mt-1">Ask me any question — explanations, coding, summaries, interview prep, or problem solving.</p>
               </div>
 
-              {/* Target Exam Badge Banner */}
-              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 rounded-2xl bg-primary/5 border border-primary/20 text-xs shadow-xs">
-                <div className="flex items-center gap-2 font-medium text-foreground">
-                  <Target size={15} className="text-primary" />
-                  <span>Target Exam Feed: <span className="font-bold text-primary underline decoration-primary/30 underline-offset-4">{targetExam}</span></span>
-                </div>
-                <span className="text-[11px] text-muted-foreground">Showing 8 tailored prompts</span>
-              </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-3">
                 {getExamPrompts(targetExam).map(q => (
                   <button key={q.text} onClick={() => { setInput(q.text); textareaRef.current?.focus(); }}
@@ -914,86 +950,169 @@ export default function AITutor() {
         {/* input */}
         <div className="px-5 pb-5 pt-3 border-t border-border bg-card/30 flex-shrink-0">
           <div className="max-w-4xl mx-auto">
-            {/* hidden file input for OCR */}
+            {/* hidden file inputs for Image (OCR) and PDF / Documents */}
             <input
-              ref={fileInputRef}
+              ref={imageInputRef}
               type="file"
-              accept="image/*"
-              onChange={handleImageChange}
+              multiple
+              accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/bmp"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <input
+              ref={docInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.txt,.csv,.doc,.docx,.md,.json"
+              onChange={handleFileUpload}
               className="hidden"
             />
 
-            {/* OCR image preview / loading state banner */}
+            {/* Error notification banner */}
+            {ocrError && (
+              <div className="mb-2 px-3 py-2 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center justify-between">
+                <span className="flex items-center gap-1.5"><AlertCircle size={13} /> {ocrError}</span>
+                <button onClick={() => setOcrError(null)} className="p-0.5 hover:bg-destructive/10 rounded"><X size={12} /></button>
+              </div>
+            )}
+
+            {/* ChatGPT-Style Attachment Preview Cards */}
             <AnimatePresence>
-              {(selectedImage || ocrError || ocrLoading) && (
+              {attachments.length > 0 && (
                 <motion.div
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 6 }}
-                  className="mb-2.5 flex items-center justify-between gap-3 p-2.5 rounded-2xl bg-card border border-border text-xs shadow-sm"
+                  initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                  className="mb-3 flex flex-wrap gap-2.5 p-3 rounded-2xl bg-card/80 border border-border/80 backdrop-blur-md text-xs shadow-md max-h-40 overflow-y-auto custom-scrollbar"
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    {selectedImage && (
-                      <img
-                        src={selectedImage.preview}
-                        alt="Upload preview"
-                        className="w-10 h-10 rounded-xl object-cover border border-border flex-shrink-0"
-                      />
-                    )}
-                    <div className="min-w-0">
-                      <p className="font-semibold truncate text-foreground">{selectedImage?.name || "Uploaded Image"}</p>
-                      {ocrLoading ? (
-                        <p className="text-[11px] text-primary flex items-center gap-1.5 font-medium mt-0.5">
-                          <Loader2 size={12} className="animate-spin" /> Extracting text via OCR...
-                        </p>
-                      ) : ocrError ? (
-                        <p className="text-[11px] text-destructive flex items-center gap-1 font-medium mt-0.5">
-                          <AlertCircle size={12} /> {ocrError}
-                        </p>
+                  {attachments.map((att) => (
+                    <motion.div
+                      key={att.id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      className="relative group flex items-center gap-3 pl-2.5 pr-8 py-2 rounded-xl bg-background/80 border border-border/80 hover:border-primary/40 text-xs shadow-xs transition-all"
+                    >
+                      {att.previewUrl ? (
+                        <img
+                          src={att.previewUrl}
+                          alt={att.name}
+                          className="w-9 h-9 rounded-lg object-cover border border-border/60 flex-shrink-0 shadow-2xs"
+                        />
                       ) : (
-                        <p className="text-[11px] text-green-500 font-medium flex items-center gap-1 mt-0.5">
-                          <Check size={12} /> OCR text appended to prompt!
-                        </p>
+                        <div
+                          className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-[10px] flex-shrink-0 shadow-2xs ${
+                            att.type === "pdf"
+                              ? "bg-red-500/10 text-red-500 border border-red-500/20"
+                              : "bg-primary/10 text-primary border border-primary/20"
+                          }`}
+                        >
+                          {att.type === "pdf" ? <FileText size={18} className="text-red-500" /> : <FileText size={18} className="text-primary" />}
+                        </div>
                       )}
-                    </div>
-                  </div>
-                  <button
-                    onClick={clearSelectedImage}
-                    className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                    title="Remove image"
-                  >
-                    <X size={14} />
-                  </button>
+                      <div className="min-w-0">
+                        <p className="font-semibold truncate max-w-[140px] sm:max-w-[200px] text-foreground text-xs leading-snug">{att.name}</p>
+                        {att.loading ? (
+                          <p className="text-[10px] text-primary flex items-center gap-1.5 font-medium mt-0.5">
+                            <Loader2 size={11} className="animate-spin" /> Processing material...
+                          </p>
+                        ) : att.error ? (
+                          <p className="text-[10px] text-destructive flex items-center gap-1 font-medium mt-0.5">
+                            <AlertCircle size={11} /> {att.error}
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-emerald-500 font-medium flex items-center gap-1 mt-0.5">
+                            <Check size={11} /> Ready ({fmtSize(att.size)})
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => removeAttachment(att.id)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all opacity-80 group-hover:opacity-100"
+                        title="Remove attachment"
+                      >
+                        <X size={13} />
+                      </button>
+                    </motion.div>
+                  ))}
                 </motion.div>
               )}
             </AnimatePresence>
 
-            <div className="flex items-end gap-2 bg-card border border-border rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-primary/40 transition-all shadow-sm">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={ocrLoading}
-                className={`p-1.5 rounded-xl transition-all flex-shrink-0 mb-0.5 ${
-                  ocrLoading
-                    ? "bg-primary/10 text-primary animate-pulse cursor-wait"
-                    : selectedImage
-                    ? "bg-primary/20 text-primary hover:bg-primary/30"
-                    : "hover:bg-muted text-muted-foreground hover:text-foreground"
-                }`}
-                title="Upload image for OCR"
-              >
-                {ocrLoading ? <Loader2 size={18} className="animate-spin" /> : <ImageIcon size={18} />}
-              </button>
+            {/* Sleek Integrated Input Box (ChatGPT / Claude / Gemini Style) */}
+            <div className="flex items-end gap-2 bg-card border border-border rounded-3xl px-3.5 py-3 focus-within:ring-4 focus-within:ring-primary/10 focus-within:border-primary/50 transition-all shadow-xl shadow-black/5 backdrop-blur-md">
+              {/* ChatGPT / Claude Style Attachment Plus Button with Popover Menu */}
+              <div className="relative flex items-center pb-0.5 flex-shrink-0" ref={attachMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowAttachMenu(!showAttachMenu)}
+                  disabled={attachments.some(a => a.loading)}
+                  className="w-9 h-9 rounded-full bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer border border-border/50 hover:scale-105 active:scale-95 disabled:opacity-50"
+                  title="Attach files (Image OCR, PDF, Documents)"
+                >
+                  <Plus size={18} className={`transition-transform duration-200 ${showAttachMenu ? "rotate-45 text-foreground" : ""}`} />
+                </button>
+
+                <AnimatePresence>
+                  {showAttachMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      transition={{ duration: 0.15, ease: "easeOut" }}
+                      className="absolute bottom-12 left-0 z-50 w-56 p-1.5 rounded-2xl bg-card border border-border shadow-2xl backdrop-blur-xl"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => { imageInputRef.current?.click(); setShowAttachMenu(false); }}
+                        className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-muted/80 text-left text-xs font-medium transition-all group cursor-pointer"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <ImageIcon size={16} />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-foreground">Upload Image / Photo</p>
+                          <p className="text-[10px] text-muted-foreground">OCR text & math analysis</p>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => { docInputRef.current?.click(); setShowAttachMenu(false); }}
+                        className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-muted/80 text-left text-xs font-medium transition-all group cursor-pointer"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <FileText size={16} />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-foreground">Upload PDF / Document</p>
+                          <p className="text-[10px] text-muted-foreground">PDF, TXT, CSV, Docs</p>
+                        </div>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
               <textarea ref={textareaRef} rows={1} value={input}
                 onChange={e => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px"; }}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }}
-                placeholder="Ask any study-related question, upload notes, solve problems, explain concepts, generate summaries, or prepare for interviews..."
-                className="flex-1 bg-transparent resize-none focus:outline-none text-sm placeholder:text-muted-foreground/60 max-h-40 py-0.5 custom-scrollbar" />
-              <button onClick={send} disabled={!input.trim() || typing || ocrLoading}
-                className={`p-2.5 rounded-xl flex-shrink-0 transition-all ${input.trim() && !typing && !ocrLoading ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/30" : "bg-muted text-muted-foreground cursor-not-allowed"}`}>
+                placeholder="Ask any study question, explain concepts, solve problems, or attach documents..."
+                className="flex-1 bg-transparent resize-none focus:outline-none text-sm placeholder:text-muted-foreground/60 max-h-40 py-1.5 custom-scrollbar" />
+
+              <button onClick={send} disabled={(!input.trim() && !attachments.some(a => !a.loading)) || typing || attachments.some(a => a.loading)}
+                className={`p-2.5 rounded-2xl flex-shrink-0 transition-all duration-200 active:scale-95 ${
+                  (input.trim() || attachments.some(a => !a.loading)) && !typing && !attachments.some(a => a.loading)
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/25 cursor-pointer"
+                    : "bg-muted text-muted-foreground/50 cursor-not-allowed"
+                }`}
+                title="Send message"
+              >
                 <Send size={16} />
               </button>
             </div>
-            <p className="text-[10px] text-muted-foreground text-center mt-2">
+            <p className="text-[10px] text-muted-foreground text-center mt-2.5 font-medium opacity-80">
               AI Mentor · Universal AI Study Assistant · Enter to send · Shift+Enter for new line
             </p>
           </div>

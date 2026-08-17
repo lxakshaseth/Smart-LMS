@@ -11,6 +11,7 @@ const {
   studyMode,
   generateQuiz,
   ocrFromImage,
+  processAttachment,
   createNewChat,
   getSessions,
   getSingleChat,
@@ -28,7 +29,7 @@ if (!fs.existsSync("uploads")) {
 const upload = multer({
   dest: "uploads/",
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB
+    fileSize: 20 * 1024 * 1024 // 20MB for PDFs & Docs
   }
 });
 
@@ -76,7 +77,7 @@ router.post("/generate-notes", protect, studyMode);
 router.post("/generate-quiz", protect, generateQuiz);
 
 // ============================
-// OCR SYSTEM
+// OCR & ATTACHMENT SYSTEM
 // ============================
 
 router.post(
@@ -84,6 +85,13 @@ router.post(
   protect,
   upload.single("image"),
   ocrFromImage
+);
+
+router.post(
+  "/process-attachment",
+  protect,
+  upload.single("file"),
+  processAttachment
 );
 
 // ============================
