@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { useNavigate } from "react-router";
 import {
   Upload, FileText, Image, X, Plus, Download, Scissors,
   Merge, RotateCw, Trash2, Eye, ChevronLeft, ChevronRight,
@@ -6,7 +7,7 @@ import {
   FlipVertical, Layers, AlertCircle, CheckCircle2, File,
   ArrowUpDown, MoveUp, MoveDown, RefreshCw, Pencil, Library,
   FolderOpen, Clock, Search, Filter, Star, StarOff, MoreVertical,
-  BookOpen, CheckCheck,
+  BookOpen, CheckCheck, Sparkles, Bot
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -132,8 +133,8 @@ function DropZone({ onFiles }:{ onFiles:(files:File[])=>void }) {
 }
 
 /* ─────────── File Card ─────────── */
-function FileCard({ file, selected, onSelect, onRemove, onRename }:{
-  file:UploadedFile; selected:boolean; onSelect:()=>void; onRemove:()=>void; onRename:()=>void;
+function FileCard({ file, selected, onSelect, onRemove, onRename, onAskAI }:{
+  file:UploadedFile; selected:boolean; onSelect:()=>void; onRemove:()=>void; onRename:()=>void; onAskAI:()=>void;
 }) {
   return (
     <motion.div layout initial={{opacity:0,scale:0.9}} animate={{opacity:1,scale:1}} exit={{opacity:0,scale:0.9}}
@@ -158,6 +159,13 @@ function FileCard({ file, selected, onSelect, onRemove, onRename }:{
           </span>
           <span className="text-[10px] text-muted-foreground">{fmtSize(file.size)}</span>
         </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); onAskAI(); }}
+          className="mt-2 w-full py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors"
+          title="Ask AI questions about this document"
+        >
+          <Sparkles size={12} /> Ask AI
+        </button>
       </div>
       {/* action buttons */}
       <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -558,6 +566,7 @@ function ToolPanel({ tool, files, selectedIds, onClose, onComplete }:{
 
 /* ─────────── MAIN ─────────── */
 export default function UploadMaterial() {
+  const navigate = useNavigate();
   const [files, setFiles]         = useState<UploadedFile[]>([]);
   const [library, setLibrary]     = useState<LibraryFile[]>([]);
   const [selectedIds, setSelected] = useState<string[]>([]);
@@ -694,7 +703,8 @@ export default function UploadMaterial() {
                       {displayed.map(f=>(
                         <FileCard key={f.id} file={f} selected={selectedIds.includes(f.id)}
                           onSelect={()=>toggleSel(f.id)} onRemove={()=>removeFile(f.id)}
-                          onRename={()=>setRenameTarget({id:f.id,name:f.name,scope:"workspace"})}/>
+                          onRename={()=>setRenameTarget({id:f.id,name:f.name,scope:"workspace"})}
+                          onAskAI={()=>navigate("/ai-tutor", { state: { attachment: f } })}/>
                       ))}
                       <label className="rounded-2xl border-2 border-dashed border-border hover:border-primary/50 cursor-pointer flex flex-col items-center justify-center gap-2 min-h-[148px] text-muted-foreground hover:text-primary transition-all">
                         <Plus size={24}/><span className="text-xs font-medium">Add More</span>

@@ -11,6 +11,14 @@ const messageSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    attachments: [
+      {
+        name: { type: String },
+        type: { type: String },
+        size: { type: Number },
+        extractedText: { type: String },
+      },
+    ],
   },
   { timestamps: true }
 );

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="lmsGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#8b5cf6" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="18" fill="url(#lmsGrad)" />
+  <path fill="#ffffff" d="M18 16c-3.31 0-6 2.69-6 6v22c0 2.21 1.79 4 4 4h14v-4H16c-1.1 0-2-.9-2-2V22c0-1.1.9-2 2-2h12v-4H18zm28 0H34v4h12c1.1 0 2 .9 2 2v20c0 1.1-.9 2-2 2H34v4h14c2.21 0 4-1.79 4-4V22c0-3.31-2.69-6-6-6z"/>
+  <path fill="#ffd700" d="M32 12l2.5 5.5L40 20l-5.5 2.5L32 28l-2.5-5.5L24 20l5.5-2.5z"/>
+</svg>

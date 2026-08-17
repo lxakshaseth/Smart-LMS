@@ -2,6 +2,7 @@ const Chat = require("../models/chat.model");
 const User = require("../models/user.model");
 const Note = require("../models/note.model");
 const Tesseract = require("tesseract.js");
+const pdfParse = require("pdf-parse");
 const fs = require("fs");
 const OpenAI = require("openai");
 const mongoose = require("mongoose");
@@ -300,16 +301,18 @@ const getSingleChat = async (req, res) => {
 
 const askAI = async (req, res) => {
   try {
-    let { chatId, language = "Auto-Detect", targetExam: clientTargetExam } = req.body;
+    let { chatId, language = "Auto-Detect", targetExam: clientTargetExam, attachments = [] } = req.body;
     const question = (req.body.question || req.body.message || "").trim();
 
-    if (!question)
+    if (!question && (!Array.isArray(attachments) || attachments.length === 0))
       return res.status(400).json({
         success: false,
-        message: "Question is required"
+        message: "Question or attachment is required"
       });
 
-    if (question.length > 4000)
+    const displayQuestion = question || "Please summarize and explain the attached material.";
+
+    if (displayQuestion.length > 4000)
       return res.status(400).json({
         success: false,
         message: "Question must be under 4000 characters"
@@ -329,23 +332,45 @@ const askAI = async (req, res) => {
     if (!chat) {
       chat = await Chat.create({
         user: req.user.id,
-        title: question.slice(0, 50) || "AI Discussion",
+        title: displayQuestion.slice(0, 50) || "AI Discussion",
         messages: [],
         language
       });
     }
 
     chat.language = language;
-    chat.messages.push({ role: "user", content: question });
+    
+    // Save user message with optional attachments
+    const userMessageObj = { 
+      role: "user", 
+      content: displayQuestion,
+      attachments: Array.isArray(attachments) ? attachments.map(a => ({
+        name: a.name || "Attachment",
+        type: a.type || "file",
+        size: a.size || 0,
+        extractedText: a.extractedText || ""
+      })) : []
+    };
+
+    chat.messages.push(userMessageObj);
 
     if (chat.title === "New Chat" && chat.messages.length === 1) {
-      chat.title = question.slice(0, 60);
+      chat.title = displayQuestion.slice(0, 60);
     }
 
-    const cleanMessages = chat.messages.slice(-6).map(m => ({
-      role: m.role,
-      content: m.content
-    }));
+    const cleanMessages = chat.messages.slice(-6).map(m => {
+      let contentStr = m.content;
+      if (m.attachments && m.attachments.length > 0) {
+        const attContext = m.attachments.map((att, i) => (
+          `[Attached File ${i+1}: "${att.name}" (${att.type})]\nContent Preview / Extracted Text:\n${(att.extractedText || "").slice(0, 4000)}`
+        )).join("\n\n");
+        contentStr = `${m.content}\n\n[USER ATTACHED MATERIALS]:\n${attContext}`;
+      }
+      return {
+        role: m.role,
+        content: contentStr
+      };
+    });
 
     const completion = await safeGroqCall({
       model: process.env.GROQ_MODEL || "llama-3.1-8b-instant",
@@ -362,6 +387,9 @@ EXAM TARGET REQUIREMENT:
 
 Preferred Response Language Setting: ${language}
 
+DOCUMENT & MATERIAL ATTACHMENT INSTRUCTION:
+- If the user has provided attached documents, PDFs, or image OCR text in [USER ATTACHED MATERIALS], analyze the text carefully to answer questions, solve math/physics problems, explain concepts, or summarize content directly based on the uploaded material.
+
 LANGUAGE REQUIREMENT (STRICT):
 - If the user inputs text in ENGLISH (e.g. "machine learning", "hi", "explain Newton's laws"), start and maintain the conversation strictly in ENGLISH until user asks to switch.
 - Do NOT respond in Hinglish/Hindi when user writes in English.
@@ -370,7 +398,7 @@ Keep your answers clear, accurate, well-structured, helpful, and student-friendl
         },
         ...cleanMessages
       ],
-      max_tokens: 600
+      max_tokens: 1000
     });
 
     const reply = completion.choices[0].message.content;
@@ -624,6 +652,102 @@ const ocrFromImage = async (req, res) => {
   }
 };
 
+/* ===============================
+   PDF TEXT EXTRACTION HELPER
+=============================== */
+
+async function extractTextFromPdf(dataBuffer) {
+  try {
+    const pdfModule = require("pdf-parse");
+    if (typeof pdfModule === "function") {
+      const data = await pdfModule(dataBuffer);
+      return (data.text || "").trim();
+    }
+    const PDFParse = pdfModule.PDFParse || (pdfModule.default && pdfModule.default.PDFParse);
+    if (PDFParse) {
+      const uint8 = new Uint8Array(dataBuffer);
+      const parser = new PDFParse(uint8);
+      const res = await parser.getText();
+      return (res.text || "").trim();
+    }
+  } catch (err) {
+    console.warn("PDF extraction notice:", err.message);
+  }
+  return "";
+}
+
+/* ===============================
+   PROCESS ATTACHMENT (PDF / IMAGE / DOC)
+=============================== */
+
+const processAttachment = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: "No file provided for extraction" });
+  }
+
+  const filePath = req.file.path;
+  const originalName = req.file.originalname || "Uploaded Material";
+  const mimeType = req.file.mimetype || "";
+  const size = req.file.size || 0;
+
+  try {
+    let extractedText = "";
+    let fileKind = "text";
+
+    if (mimeType.includes("pdf") || originalName.toLowerCase().endsWith(".pdf")) {
+      fileKind = "pdf";
+      const dataBuffer = fs.readFileSync(filePath);
+      extractedText = await extractTextFromPdf(dataBuffer);
+      if (!extractedText) {
+        extractedText = `PDF Document attached: "${originalName}" (${Math.round(size / 1024)} KB)`;
+      }
+    } else if (mimeType.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(originalName)) {
+      fileKind = "image";
+      try {
+        const result = await Tesseract.recognize(filePath, "eng");
+        const rawText = result.data?.text || "";
+        extractedText = rawText.split("\n").map(line => line.trim()).filter(Boolean).join("\n");
+      } catch (ocrErr) {
+        console.warn("Image OCR notice:", ocrErr.message);
+        extractedText = `Image file attached: "${originalName}"`;
+      }
+    } else {
+      fileKind = "text";
+      try {
+        extractedText = fs.readFileSync(filePath, "utf-8");
+      } catch (err) {
+        extractedText = `Document attached: ${originalName}`;
+      }
+    }
+
+    res.json({
+      success: true,
+      attachment: {
+        id: `att_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        name: originalName,
+        type: fileKind,
+        size,
+        extractedText: extractedText.slice(0, 20000),
+        textPreview: extractedText.slice(0, 300)
+      }
+    });
+  } catch (error) {
+    console.error("PROCESS ATTACHMENT ERROR:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to extract content from attached file"
+    });
+  } finally {
+    if (filePath && fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch (err) {
+        console.error("TEMP ATTACHMENT CLEANUP ERROR:", err);
+      }
+    }
+  }
+};
+
 const generateExamSpecialQuestion = async (req, res) => {
   try {
     const { targetExam = "Class 10 Boards", subject = "Physics" } = req.body;
@@ -743,6 +867,7 @@ module.exports = {
   studyMode,
   generateQuiz,
   ocrFromImage,
+  processAttachment,
   createNewChat,
   getSessions,
   getSingleChat,
