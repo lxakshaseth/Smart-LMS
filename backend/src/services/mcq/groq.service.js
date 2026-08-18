@@ -33,7 +33,7 @@ function calculateMaxTokens(questionCount) {
  */
 async function callGroqMCQ({ systemPrompt, userPrompt }, questionCount = 10, maxRetries = 3) {
   const client = getGroqClient();
-  const model = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+  const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
   const max_tokens = calculateMaxTokens(questionCount);
 
   let lastError = null;

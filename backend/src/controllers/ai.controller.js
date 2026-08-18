@@ -25,22 +25,44 @@ const getGroqClient = () => {
 };
 
 /* ===============================
-   SAFE GROQ CALL
+   SAFE GROQ CALL WITH AUTOMATIC MODEL FALLBACK
 =============================== */
+
+const GROQ_MODEL_FALLBACKS = [
+  process.env.GROQ_MODEL,
+  "llama-3.3-70b-versatile",
+  "llama3-8b-8192",
+  "llama3-70b-8192",
+  "mixtral-8x7b-32768",
+  "llama-3.1-8b-instant"
+].filter(Boolean);
 
 async function safeGroqCall(config) {
   const client = getGroqClient();
-  const model = config.model || process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+  const modelsToTry = config.model ? [config.model, ...GROQ_MODEL_FALLBACKS] : GROQ_MODEL_FALLBACKS;
 
-  return await Promise.race([
-    client.chat.completions.create({
-      ...config,
-      model
-    }),
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Groq Timeout")), 30000)
-    )
-  ]);
+  let lastErr = null;
+  for (const targetModel of Array.from(new Set(modelsToTry))) {
+    try {
+      return await Promise.race([
+        client.chat.completions.create({
+          ...config,
+          model: targetModel
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Groq Timeout")), 30000)
+        )
+      ]);
+    } catch (err) {
+      lastErr = err;
+      if (err.message && (err.message.includes("404") || err.message.includes("does not exist") || err.message.includes("model_not_found"))) {
+        console.warn(`Groq Model ${targetModel} unavailable (404), trying next fallback...`);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastErr;
 }
 
 /* ===============================
@@ -373,7 +395,7 @@ const askAI = async (req, res) => {
     });
 
     const completion = await safeGroqCall({
-      model: process.env.GROQ_MODEL || "llama-3.1-8b-instant",
+      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
       messages: [
         {
           role: "system",

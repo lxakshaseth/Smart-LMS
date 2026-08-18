@@ -50,7 +50,7 @@ async function safeGroqCall(messages, temperature = 0.5) {
       apiKey: process.env.GROQ_API_KEY,
       baseURL: "https://api.groq.com/openai/v1"
     });
-    const model = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+    const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 
     const completion = await groq.chat.completions.create({
       model,
