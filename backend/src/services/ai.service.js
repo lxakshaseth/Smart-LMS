@@ -58,7 +58,7 @@ async function generateAIResponse(prompt, options = {}) {
   try {
     const systemPrompt = options.system || "You are an intelligent academic AI system. Return clean JSON when requested. Never include markdown unless asked.";
     const client = getGroqClient();
-    const model = options.model || process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+    const model = options.model || process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 
     const response = await client.chat.completions.create({
       model,
@@ -97,7 +97,7 @@ async function generateStructuredResponse(prompt) {
 async function solveQuestion(question) {
   try {
     const client = getGroqClient();
-    const model = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+    const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
     const response = await client.chat.completions.create({
       model,
       messages: [
