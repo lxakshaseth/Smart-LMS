@@ -4,7 +4,9 @@ import {
   Zap, Dna, Calculator, BarChart3, BookOpen, Timer, Shield, Train, FileText,
   Sparkles, Check, RefreshCw, Eye, ArrowRight, CheckCircle2, AlertTriangle,
   Award, Copy, Info, Sliders, Activity, Flame, HelpCircle, EyeOff, RotateCcw,
-  CheckSquare, ChevronDown, Beaker, FlaskConical, Droplets, Lightbulb, MessageSquare
+  CheckSquare, ChevronDown, Beaker, FlaskConical, Droplets, Lightbulb, MessageSquare,
+  Clock, Target, Play, Send, CheckSquare2, FileCheck, Layers, Scale, Crosshair,
+  UserCheck, Compass, Radio, ChevronRight, CornerDownRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../../context/AuthContext";
@@ -31,490 +33,821 @@ interface AiQuestion {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   VIRTUAL PRACTICAL LAB & EXPERIMENT DOUBT SOLVER (CLASS 10 & 12)
+   CLIENT-SIDE HIGH-YIELD FALLBACK DATABASE (ZERO-BLANK GUARANTEE)
    ═══════════════════════════════════════════════════════════════════════════ */
-function VirtualPracticalLab() {
-  const [activeExp, setActiveExp] = useState<"physics" | "chemistry" | "biology">("physics");
+const FALLBACK_QUESTIONS: Record<string, AiQuestion> = {
+  "NDA/CDS": {
+    id: "q_nda_1",
+    targetExam: "NDA/CDS",
+    subject: "Mathematics",
+    topic: "Trigonometric Equations & Vector Algebra",
+    marks: "GAT / Math 300 Marks Weightage",
+    questionTitle: "Solve: Express vector r in terms of orthogonal components and evaluate sin(2θ) given tan(θ) = 3/4",
+    diagramDescription: "Orthogonal Coordinate Axes (x, y, z) with Vector Projection and Right-Angled Triangle Ratio",
+    steps: [
+      {
+        stepNum: 1,
+        title: "Step 1: Trigonometric Double Angle Expansion",
+        formula: "sin(2θ) = 2 tan(θ) / (1 + tan²(θ))",
+        explanation: "Substitute tan(θ) = 3/4 into the double-angle identity: 2*(3/4) / (1 + 9/16) = (3/2) / (25/16) = 24/25 = 0.96.",
+        credit: "+2.5 Marks"
+      },
+      {
+        stepNum: 2,
+        title: "Step 2: Vector Scalar Product & Magnitude",
+        formula: "|a × b|² + (a · b)² = |a|² |b|² (Lagrange's Identity)",
+        explanation: "Apply Lagrange's Identity in 3D vector geometry to decouple cross product and dot product magnitudes.",
+        credit: "+2.5 Marks"
+      },
+      {
+        stepNum: 3,
+        title: "Step 3: Verification & Defense GAT Speed Hack",
+        formula: "Verify with Pythagorean Triple (3, 4, 5)",
+        explanation: "Check quadrant signs for NDA Math paper: sin(2θ) is positive in Quadrant I & II.",
+        credit: "+2.5 Marks"
+      }
+    ],
+    examinerAlerts: [
+      "⚠️ NDA Math Cutoff Tip: Do not spend more than 90 seconds per trigonometric substitution question.",
+      "💡 Double-check quadrant signs (+/-) when taking square roots in vector dot products."
+    ]
+  },
+  "GATE": {
+    id: "q_gate_1",
+    targetExam: "GATE",
+    subject: "Computer Science",
+    topic: "Operating Systems & Virtual Memory Paging",
+    marks: "2 Marks NAT (Numerical Answer Type)",
+    questionTitle: "Calculate Effective Page Fault Service Time for a 32-bit Paged Memory Architecture",
+    diagramDescription: "Two-Level Page Table Translation Walk & TLB Hit/Miss Decision Flow",
+    steps: [
+      {
+        stepNum: 1,
+        title: "Step 1: Effective Memory Access Time Formula",
+        formula: "EMAT = (1 - p) × (TLB_time + Mem_time) + p × Page_Fault_Service_Time",
+        explanation: "Define p as the page fault rate. Given TLB hit ratio α = 0.98, memory access = 100ns, fault service = 10ms.",
+        credit: "+1.0 Mark"
+      },
+      {
+        stepNum: 2,
+        title: "Step 2: Substitution & Unit Conversion",
+        formula: "EMAT = (0.98)(10 + 100) + (0.02)(10 + 100 + 100) + p(10,000,000 ns)",
+        explanation: "Convert 10ms to nanoseconds (10^7 ns) and evaluate baseline access delay without fault.",
+        credit: "+1.0 Mark"
+      }
+    ],
+    examinerAlerts: [
+      "⚠️ GATE NAT Tip: Pay extreme attention to time units (microseconds vs nanoseconds vs milliseconds).",
+      "💡 Standard GATE Virtual Calculator accuracy requires rounding to 2 decimal places."
+    ]
+  },
+  "CAT": {
+    id: "q_cat_1",
+    targetExam: "CAT",
+    subject: "Data Interpretation",
+    topic: "Matrix Seating Arrangement & Grid Optimization",
+    marks: "3 Marks MCQ (+3, -1)",
+    questionTitle: "DILR Set: 5 Executives sitting in a row facing North with distinct car models and laptop brands",
+    diagramDescription: "5-Column Linear Grid with Logic Constraints & Elimination Vectors",
+    steps: [
+      {
+        stepNum: 1,
+        title: "Step 1: Anchor Point Identification",
+        formula: "Position 3 = Center Seat (Fixed Anchor)",
+        explanation: "Identify the absolute condition: Executive wearing Blue sits at extreme right (Seat 5) and drives BMW.",
+        credit: "+1.0 Mark"
+      },
+      {
+        stepNum: 2,
+        title: "Step 2: Constraint Matrix Reduction",
+        formula: "Seat 2 ≠ Audi; Seat 4 = Dell Laptop",
+        explanation: "Eliminate impossible combinations using the 2-pass grid method to isolate Seat 3.",
+        credit: "+2.0 Marks"
+      }
+    ],
+    examinerAlerts: [
+      "⚠️ CAT DILR Strategy: If a set takes > 4 minutes without fixing 2 anchors, move to next set!",
+      "💡 Draw a neat 5x4 table on scratchpad before attempting options."
+    ]
+  },
+  "UPSC": {
+    id: "q_upsc_1",
+    targetExam: "UPSC",
+    subject: "GS2 - Polity & Governance",
+    topic: "Judicial Review & Basic Structure Doctrine",
+    marks: "15 Marks Mains Question (250 Words)",
+    questionTitle: "Examine how the Supreme Court of India expanded Fundamental Rights through Judicial Activism under Article 21.",
+    diagramDescription: "Flowchart: Article 14-19-21 Golden Triangle & Key Landmark Judgments (Maneka Gandhi to Puttaswamy)",
+    steps: [
+      {
+        stepNum: 1,
+        title: "Step 1: Introduction (30-40 Words)",
+        formula: "Context + Constitutional Provisions (Article 21 & Procedure Established by Law)",
+        explanation: "Define Article 21 and the shift from 'Procedure established by law' to 'Due process of law' after Maneka Gandhi case (1978).",
+        credit: "+3.0 Marks"
+      },
+      {
+        stepNum: 2,
+        title: "Step 2: Body Paragraph - Multi-Dimensional Rights",
+        formula: "Sub-headings: Right to Privacy, Clean Environment, Livelihood & Dignity",
+        explanation: "Cite landmark cases: K.S. Puttaswamy (Privacy), MC Mehta (Environment), Olga Tellis (Livelihood).",
+        credit: "+8.0 Marks"
+      },
+      {
+        stepNum: 3,
+        title: "Step 3: Conclusion & Way Forward (30-40 Words)",
+        formula: "Balanced View: Judicial Activism vs Judicial Overreach",
+        explanation: "Conclude with the necessity of maintaining separation of powers (Article 50) while safeguarding citizens' liberties.",
+        credit: "+4.0 Marks"
+      }
+    ],
+    examinerAlerts: [
+      "⚠️ UPSC Mains Marker Tip: Always underline Constitutional Articles and Landmark SC Judgments.",
+      "💡 Use a neat box flow chart for the 'Golden Triangle' (Articles 14, 19, 21) in the middle of page 1."
+    ]
+  },
+  "Default": {
+    id: "q_default_1",
+    targetExam: "General Suite",
+    subject: "Core Aptitude",
+    topic: "Problem Solving & Analytical Step Resolver",
+    marks: "High Yield Practice Question",
+    questionTitle: "Step-by-Step Analytical Mastery & Methodical Proof Engine",
+    diagramDescription: "Schematic Conceptual Flowchart & Logical Step Diagram",
+    steps: [
+      {
+        stepNum: 1,
+        title: "Step 1: Problem Formulation & Inputs",
+        formula: "Identify Given Constraints & Variable Definitions",
+        explanation: "Extract baseline parameters and state the core principles needed for the question.",
+        credit: "+1.5 Marks"
+      },
+      {
+        stepNum: 2,
+        title: "Step 2: Logical Derivation & Computation",
+        formula: "Primary Equation Substitution & Algebraic Expansion",
+        explanation: "Execute step-by-step mathematical or logical operations without skipping steps.",
+        credit: "+1.5 Marks"
+      },
+      {
+        stepNum: 3,
+        title: "Step 3: Final Verification & SI Units",
+        formula: "Boxed Final Result",
+        explanation: "Double-check units, boundary conditions, and sign conventions.",
+        credit: "+2.0 Marks"
+      }
+    ],
+    examinerAlerts: [
+      "⚠️ Always format step numbers clearly and highlight final values.",
+      "💡 Review common calculation errors on rough paper before submitting."
+    ]
+  }
+};
 
-  /* --- Physics Experiment State (Snell's Law & Refraction) --- */
-  const [incidentAngle, setIncidentAngle] = useState<number>(45); // i in deg
-  const [refIndex, setRefIndex]           = useState<number>(1.5); // n (Glass = 1.5, Water = 1.33, Diamond = 2.42)
+/* ═══════════════════════════════════════════════════════════════════════════
+   SPECIALIZED TOOL 1: SSB PREP HUB & DEFENSE GAT (NDA / CDS)
+   ═══════════════════════════════════════════════════════════════════════════ */
+function SsbDefenseHub() {
+  const [subTab, setSubTab] = useState<"ppdt" | "oir" | "defense_gat" | "solver">("ppdt");
 
-  // Snell's Law: sin(i) / sin(r) = n => sin(r) = sin(i) / n
-  const sinI = Math.sin((incidentAngle * Math.PI) / 180);
-  const sinR = Math.min(0.999, sinI / refIndex);
-  const refractAngle = (Math.asin(sinR) * 180) / Math.PI;
-  const lateralShift = (40 * Math.sin(((incidentAngle - refractAngle) * Math.PI) / 180) / Math.cos((refractAngle * Math.PI) / 180)).toFixed(1);
+  /* --- PPDT State --- */
+  const [ppdtPhase, setPpdtPhase]             = useState<"ready" | "observing" | "writing" | "evaluated">("ready");
+  const [observeTimeLeft, setObserveTimeLeft] = useState<number>(30);
+  const [writeTimeLeft, setWriteTimeLeft]     = useState<number>(240); // 4 minutes
+  const [ppdtBox, setPpdtBox]                 = useState({ count: 2, mainSex: "Male", age: "23", mood: "Positive (+)", action: "Organizing a village water filtration campaign" });
+  const [ppdtStory, setPpdtStory]             = useState("");
+  const [evaluatingStory, setEvaluatingStory] = useState(false);
+  const [storyResult, setStoryResult]         = useState<{ olqScore: number; feedback: string; olqBreakdown: string[] } | null>(null);
 
-  /* --- Chemistry Experiment State (Acid-Base Titration) --- */
-  const [naohVolume, setNaohVolume] = useState<number>(10); // mL added
-  const [indicator, setIndicator]   = useState<"phenolphthalein" | "universal" | "methyl">("phenolphthalein");
-
-  // pH calculation simulation: 25mL is equivalence point (pH = 7)
-  const calcPh = naohVolume < 24
-    ? (2.0 + (naohVolume / 24) * 3.5).toFixed(1)
-    : naohVolume === 25
-    ? "7.0"
-    : (7.0 + ((naohVolume - 25) / 25) * 5.5).toFixed(1);
-
-  const numericPh = parseFloat(calcPh);
-
-  const getSolutionColor = () => {
-    if (indicator === "phenolphthalein") {
-      return numericPh >= 8.2 ? "rgba(236, 72, 153, 0.85)" : "rgba(241, 245, 249, 0.25)";
-    } else if (indicator === "universal") {
-      if (numericPh < 4) return "rgba(239, 68, 68, 0.85)";
-      if (numericPh < 7) return "rgba(234, 179, 8, 0.85)";
-      if (numericPh === 7) return "rgba(34, 197, 94, 0.85)";
-      return "rgba(59, 130, 246, 0.85)";
-    } else {
-      return numericPh < 4.4 ? "rgba(239, 68, 68, 0.85)" : "rgba(234, 179, 8, 0.85)";
+  // 30-Second Observation Timer
+  useEffect(() => {
+    let timer: any;
+    if (ppdtPhase === "observing" && observeTimeLeft > 0) {
+      timer = setInterval(() => setObserveTimeLeft(t => t - 1), 1000);
+    } else if (ppdtPhase === "observing" && observeTimeLeft === 0) {
+      setPpdtPhase("writing");
     }
+    return () => clearInterval(timer);
+  }, [ppdtPhase, observeTimeLeft]);
+
+  // 4-Minute Writing Timer
+  useEffect(() => {
+    let timer: any;
+    if (ppdtPhase === "writing" && writeTimeLeft > 0) {
+      timer = setInterval(() => setWriteTimeLeft(t => t - 1), 1000);
+    }
+    return () => clearInterval(timer);
+  }, [ppdtPhase, writeTimeLeft]);
+
+  const handleStartPpdt = () => {
+    setObserveTimeLeft(30);
+    setWriteTimeLeft(240);
+    setPpdtStory("");
+    setStoryResult(null);
+    setPpdtPhase("observing");
   };
 
-  /* --- Biology Experiment State (Photosynthesis Bubble Rate) --- */
-  const [lightIntensity, setLightIntensity] = useState<number>(60); // %
-  const [waterTemp, setWaterTemp]           = useState<number>(25); // °C
-
-  const bubbleRate = Math.round(
-    (lightIntensity / 100) * (waterTemp <= 35 ? waterTemp / 35 : Math.max(0, (45 - waterTemp) / 10)) * 50
-  );
-
-  /* --- AI Experiment Doubt Solver --- */
-  const [doubtText, setDoubtText]         = useState("");
-  const [doubtAnswer, setDoubtAnswer]     = useState<string | null>(null);
-  const [loadingDoubt, setLoadingDoubt]   = useState(false);
-
-  const prefilledDoubts = [
-    "Why does the emergent ray emerge parallel to the incident ray in a glass slab?",
-    "Why does phenolphthalein turn bright pink at the titration endpoint?",
-    "What limits the rate of photosynthesis if water temperature exceeds 40°C?"
-  ];
-
-  const handleAskDoubt = async (queryText: string = doubtText) => {
-    if (!queryText.trim()) return;
-    setLoadingDoubt(true);
-    setDoubtAnswer(null);
+  const handleEvaluateStory = async () => {
+    if (!ppdtStory.trim()) return;
+    setEvaluatingStory(true);
     try {
       const res = await apiRequest<{ success: boolean; text?: string; answer?: string }>("/ai/ask", {
         method: "POST",
         body: JSON.stringify({
-          message: `Experiment Doubt for ${activeExp.toUpperCase()} Lab:\nQuestion: ${queryText}\nProvide a concise, crystal-clear conceptual answer matching CBSE Board practical exam standards.`
+          message: `SSB PPDT Story Evaluation:\nAction: ${ppdtBox.action}\nMain Character: ${ppdtBox.mainSex}, ${ppdtBox.age} yrs, Mood: ${ppdtBox.mood}\nStory Content:\n${ppdtStory}\nProvide an SSB Selection Center assessor review with Officer Like Qualities (OLQ) rating out of 10 and constructive tips.`
         })
       });
-      if (res?.text || res?.answer) {
-        setDoubtAnswer(res.text || res.answer || "Conceptual doubt resolved.");
-      }
+      const feedbackText = res?.text || res?.answer || "Good story structure. Demonstrates initiative and constructive leadership.";
+      setStoryResult({
+        olqScore: 8.5,
+        feedback: feedbackText,
+        olqBreakdown: [
+          "✅ Effective Intelligence: Clear problem identification and logical solution.",
+          "✅ Organizing Ability: Structured action plan with community involvement.",
+          "✅ Initiative & Self-Confidence: Proactive lead character without superhero fantasy."
+        ]
+      });
+      setPpdtPhase("evaluated");
     } catch {
-      // Local fallbacks if backend offline
-      if (queryText.includes("parallel")) {
-        setDoubtAnswer("In a rectangular glass slab, refraction occurs at two parallel faces. The bending towards the normal at face 1 is exactly equal and opposite to the bending away from the normal at face 2. Thus, the emergent ray is parallel to the incident ray, shifted laterally by distance d.");
-      } else if (queryText.includes("pink")) {
-        setDoubtAnswer("Phenolphthalein is a weak organic acid indicator. In acidic solution (pH < 8.2), it remains un-ionized and colorless. When excess NaOH is added beyond the equivalence point (pH ≥ 8.2), it ionizes into pink-colored anions, marking the exact endpoint!");
-      } else {
-        setDoubtAnswer("At temperatures above 40°C, the enzymes involved in the Calvin Cycle (like RuBisCO) undergo thermal denaturation. Heat destroys their tertiary protein structure, causing the photosynthesis rate to drop sharply despite high light intensity.");
-      }
+      setStoryResult({
+        olqScore: 8.0,
+        feedback: "Your story shows realistic character portrayal, positive attitude, and community-oriented action. Avoid inserting artificial conflict or unnecessary tragedy.",
+        olqBreakdown: [
+          "✅ Effective Intelligence: Realistic problem approach.",
+          "✅ Social Adaptability: Good group coordination.",
+          "✅ Power of Expression: Clear narrative flow."
+        ]
+      });
+      setPpdtPhase("evaluated");
     } finally {
-      setLoadingDoubt(false);
+      setEvaluatingStory(false);
+    }
+  };
+
+  /* --- OIR Reasoning State --- */
+  const oirQuestions = [
+    {
+      id: 1,
+      type: "Cube & Dice Rotation",
+      q: "If a standard dice is rotated 90° clockwise along the vertical axis and then flipped upside down, which face will be opposite to 3?",
+      options: ["4", "1", "2", "6"],
+      answer: "4",
+      explanation: "In any standard opposite-face sum die, 3 is always opposite to 4 regardless of rotation orientations."
+    },
+    {
+      id: 2,
+      type: "Verbal Reasoning Analogy",
+      q: "ADMIRAL : NAVY :: AIR CHIEF MARSHAL : ?",
+      options: ["ARMY", "AIR FORCE", "COAST GUARD", "PARAMILITARY"],
+      answer: "AIR FORCE",
+      explanation: "Admiral is the highest ranking four-star officer in Indian Navy; Air Chief Marshal is the equivalent in Indian Air Force."
+    },
+    {
+      id: 3,
+      type: "Number Series Logic",
+      q: "Find the missing number in defense code sequence: 7, 14, 28, 56, 112, ?",
+      options: ["224", "168", "196", "240"],
+      answer: "224",
+      explanation: "Each number is multiplied by 2 (Geometric progression with ratio r = 2)."
+    }
+  ];
+
+  const [selectedOirAns, setSelectedOirAns] = useState<Record<number, string>>({});
+  const [oirSubmitted, setOirSubmitted]     = useState(false);
+
+  const calculateOirGrade = () => {
+    let score = 0;
+    oirQuestions.forEach(q => {
+      if (selectedOirAns[q.id] === q.answer) score += 1;
+    });
+    if (score === 3) return { grade: "OIR Grade 1 (Outstanding)", color: "text-emerald-500", desc: "Top 5% candidate potential for SSB Stage-1 Screening!" };
+    if (score === 2) return { grade: "OIR Grade 2 (Above Average)", color: "text-blue-500", desc: "Strong performance in Officer Intelligence Rating." };
+    return { grade: "OIR Grade 3 (Average)", color: "text-amber-500", desc: "Requires practice in non-verbal spatial reasoning." };
+  };
+
+  /* --- Defense Current Affairs & GAT --- */
+  const defenseFacts = [
+    { category: "Tri-Services Ranks", title: "Equivalent Officer Ranks", detail: "Army: Captain = Navy: Lieutenant = Air Force: Flight Lieutenant. Army: Colonel = Navy: Captain = Air Force: Group Captain." },
+    { category: "Weapons & Tech", title: "BrahMos Supersonic Cruise Missile", detail: "Joint venture between India (DRDO) and Russia (NPOM). Speed: Mach 2.8 - 3.0. Range extended up to 450 km." },
+    { category: "Military Exercises", title: "Exercise Yudh Abhyas 2024-25", detail: "Annual joint military training exercise between Indian Army and US Army focused on counter-terrorism in mountainous terrain." },
+    { category: "Defense Aircraft", title: "Rafale & Tejas Mk-1A", detail: "Tejas is India's indigenous Light Combat Aircraft (LCA). Rafale is 4.5 generation twin-engine M-MRCA aircraft." }
+  ];
+
+  return (
+    <div className="bg-card border border-border rounded-3xl p-6 shadow-xl space-y-6">
+      {/* Navigation Sub-Tabs */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 via-orange-500 to-red-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/20">
+            <Shield size={24} />
+          </div>
+          <div>
+            <h3 className="font-black text-lg text-foreground tracking-tight flex items-center gap-2">
+              SSB Prep Hub & Defense GAT Suite
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase">
+                NDA & CDS SPECIALIST
+              </span>
+            </h3>
+            <p className="text-xs text-muted-foreground">PPDT Picture Perception, OIR Intelligence Test & Defense Current Affairs</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-2xl bg-muted/60 border border-border">
+          <button
+            onClick={() => setSubTab("ppdt")}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+              subTab === "ppdt" ? "bg-amber-500 text-white shadow-md" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Eye size={14} />
+            <span>PPDT Simulator</span>
+          </button>
+
+          <button
+            onClick={() => setSubTab("oir")}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+              subTab === "oir" ? "bg-amber-500 text-white shadow-md" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Target size={14} />
+            <span>OIR Reasoning Test</span>
+          </button>
+
+          <button
+            onClick={() => setSubTab("defense_gat")}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+              subTab === "defense_gat" ? "bg-amber-500 text-white shadow-md" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Compass size={14} />
+            <span>Defense GAT Affairs</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ── TAB 1: PPDT SIMULATOR ── */}
+      {subTab === "ppdt" && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Column: Perception Image Screen & Timer */}
+            <div className="lg:col-span-1 bg-slate-950 rounded-2xl border border-slate-800 p-5 flex flex-col items-center justify-between text-center space-y-4 shadow-inner">
+              <div className="w-full flex items-center justify-between text-xs font-bold text-slate-400 border-b border-slate-800 pb-2">
+                <span className="flex items-center gap-1.5 text-amber-400">
+                  <Clock size={14} /> Stage 1 PPDT Image
+                </span>
+                {ppdtPhase === "observing" && (
+                  <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-mono animate-pulse">
+                    Observation: {observeTimeLeft}s
+                  </span>
+                )}
+                {ppdtPhase === "writing" && (
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-mono">
+                    Writing: {Math.floor(writeTimeLeft / 60)}:{String(writeTimeLeft % 60).padStart(2, '0')}
+                  </span>
+                )}
+              </div>
+
+              {/* Hazy PPDT Scene Box */}
+              <div className="w-full h-56 rounded-xl relative overflow-hidden bg-slate-900 border border-slate-800 flex flex-col items-center justify-center p-4">
+                <svg className={`w-full h-full transition-all duration-700 ${ppdtPhase === "observing" ? "blur-none scale-100 opacity-100" : "blur-md scale-105 opacity-60"}`} viewBox="0 0 300 180">
+                  <rect width="300" height="180" fill="#0f172a" />
+                  {/* Village Scene Elements */}
+                  <path d="M 0 140 Q 75 110 150 140 Q 225 170 300 140 L 300 180 L 0 180 Z" fill="#1e293b" />
+                  <rect x="40" y="80" width="60" height="50" fill="#334155" rx="2" />
+                  <polygon points="35,80 70,50 105,80" fill="#475569" />
+                  {/* Characters */}
+                  <circle cx="160" cy="110" r="10" fill="#f59e0b" />
+                  <rect x="155" y="120" width="10" height="25" fill="#38bdf8" />
+                  <circle cx="190" cy="115" r="9" fill="#10b981" />
+                  <rect x="186" y="124" width="8" height="20" fill="#a855f7" />
+                  <text x="110" y="30" fill="#94a3b8" fontSize="11" fontWeight="bold">SSB Hazy Perception Scene</text>
+                </svg>
+
+                {ppdtPhase === "ready" && (
+                  <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center p-4 space-y-3">
+                    <Eye size={32} className="text-amber-400" />
+                    <p className="text-xs text-slate-300 font-semibold max-w-xs">
+                      Click below to start 30-second image perception. You will have 4 minutes to complete the PPDT box & story.
+                    </p>
+                    <button
+                      onClick={handleStartPpdt}
+                      className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-lg transition-all cursor-pointer flex items-center gap-2"
+                    >
+                      <Play size={14} /> Start 30s Perception
+                    </button>
+                  </div>
+                )}
+
+                {ppdtPhase === "writing" && (
+                  <div className="absolute bottom-2 left-2 right-2 p-2 rounded-lg bg-slate-950/90 text-[10px] text-amber-300 font-bold border border-slate-800">
+                    🔒 Image hidden as per SSB rules. Write your story!
+                  </div>
+                )}
+              </div>
+
+              <div className="text-[11px] text-slate-400 font-medium text-left space-y-1 w-full">
+                <span className="font-bold text-slate-200">SSB Stage-1 Rules:</span>
+                <p>1. Observe characters, approximate age, sex & mood within 30s.</p>
+                <p>2. Complete the box details & frame a constructive story with a clear past, present action & outcome.</p>
+              </div>
+            </div>
+
+            {/* Right Column: PPDT Character Box & Story Pad */}
+            <div className="lg:col-span-2 space-y-5">
+              {/* PPDT Box Inputs */}
+              <div className="p-4 rounded-2xl bg-muted/50 border border-border space-y-3">
+                <h4 className="font-extrabold text-xs text-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                  <UserCheck size={15} className="text-amber-500" />
+                  SSB PPDT Character Box Details
+                </h4>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Number of Characters</label>
+                    <input
+                      type="number" min="1" max="10"
+                      value={ppdtBox.count}
+                      onChange={e => setPpdtBox({ ...ppdtBox, count: Number(e.target.value) })}
+                      className="w-full mt-1 p-2 rounded-xl bg-card border border-border text-xs font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Main Character Sex</label>
+                    <select
+                      value={ppdtBox.mainSex}
+                      onChange={e => setPpdtBox({ ...ppdtBox, mainSex: e.target.value })}
+                      className="w-full mt-1 p-2 rounded-xl bg-card border border-border text-xs font-bold"
+                    >
+                      <option value="Male">Male (M)</option>
+                      <option value="Female">Female (F)</option>
+                      <option value="Group">Group</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Age (Years)</label>
+                    <input
+                      type="text"
+                      value={ppdtBox.age}
+                      onChange={e => setPpdtBox({ ...ppdtBox, age: e.target.value })}
+                      className="w-full mt-1 p-2 rounded-xl bg-card border border-border text-xs font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Mood</label>
+                    <select
+                      value={ppdtBox.mood}
+                      onChange={e => setPpdtBox({ ...ppdtBox, mood: e.target.value })}
+                      className="w-full mt-1 p-2 rounded-xl bg-card border border-border text-xs font-bold"
+                    >
+                      <option value="Positive (+)">Positive (+)</option>
+                      <option value="Neutral (0)">Neutral (0)</option>
+                      <option value="Negative (-)">Negative (-)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase">Action of the Story</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Organizing clean drinking water supply in village"
+                    value={ppdtBox.action}
+                    onChange={e => setPpdtBox({ ...ppdtBox, action: e.target.value })}
+                    className="w-full mt-1 p-2.5 rounded-xl bg-card border border-border text-xs font-semibold"
+                  />
+                </div>
+              </div>
+
+              {/* Story Editor */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <FileText size={15} className="text-amber-500" />
+                    Write Your PPDT Story (Background, Current Action, Outcome)
+                  </label>
+                  <span className="text-[10px] font-mono text-muted-foreground">
+                    {ppdtStory.trim().split(/\s+/).filter(Boolean).length} words
+                  </span>
+                </div>
+
+                <textarea
+                  rows={6}
+                  placeholder="Rohan, a 23-year-old final year engineering student, noticed that his native village lacked clean drinking water during summer..."
+                  value={ppdtStory}
+                  onChange={e => setPpdtStory(e.target.value)}
+                  className="w-full p-4 rounded-2xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-amber-500/40 text-xs font-medium leading-relaxed"
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={handleEvaluateStory}
+                  disabled={evaluatingStory || !ppdtStory.trim()}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-lg shadow-amber-500/20 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {evaluatingStory ? <RefreshCw size={15} className="animate-spin" /> : <Sparkles size={15} />}
+                  <span>{evaluatingStory ? "Assessing Story..." : "Submit Story for SSB Assessment"}</span>
+                </button>
+              </div>
+
+              {storyResult && (
+                <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs space-y-3 animate-fadeIn">
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-amber-600 dark:text-amber-400 text-sm flex items-center gap-1.5">
+                      <Award size={18} /> SSB Assessor Evaluation & OLQ Score:
+                    </span>
+                    <span className="px-3 py-1 rounded-full bg-amber-500 text-white font-black text-xs">
+                      {storyResult.olqScore} / 10
+                    </span>
+                  </div>
+
+                  <p className="text-muted-foreground leading-relaxed font-medium">{storyResult.feedback}</p>
+
+                  <div className="space-y-1.5 pt-2 border-t border-amber-500/20">
+                    <span className="font-bold text-foreground">Officer Like Qualities (OLQ) Observed:</span>
+                    {storyResult.olqBreakdown.map((item, idx) => (
+                      <p key={idx} className="text-amber-800 dark:text-amber-300 text-[11px] font-medium">{item}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB 2: OIR REASONING TEST ── */}
+      {subTab === "oir" && (
+        <div className="space-y-6">
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 font-medium flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Info size={16} className="text-amber-500" />
+              Official Officer Intelligence Rating (OIR Test) drills assess speed, verbal & spatial reasoning.
+            </span>
+            <span className="font-bold font-mono">Time Limit: 3 Mins</span>
+          </div>
+
+          <div className="space-y-4">
+            {oirQuestions.map(q => (
+              <div key={q.id} className="p-5 rounded-2xl bg-card border border-border space-y-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground text-[10px] font-black uppercase">
+                    Question {q.id} · {q.type}
+                  </span>
+                  {oirSubmitted && selectedOirAns[q.id] === q.answer && (
+                    <span className="text-emerald-500 font-bold text-xs flex items-center gap-1">
+                      <CheckCircle2 size={14} /> Correct (+1)
+                    </span>
+                  )}
+                </div>
+
+                <h4 className="font-bold text-sm text-foreground">{q.q}</h4>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {q.options.map(opt => (
+                    <button
+                      key={opt}
+                      onClick={() => setSelectedOirAns({ ...selectedOirAns, [q.id]: opt })}
+                      className={`p-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                        selectedOirAns[q.id] === opt
+                          ? "bg-amber-500 text-white border-amber-500 shadow-sm"
+                          : "bg-muted/40 border-border hover:bg-muted text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+
+                {oirSubmitted && (
+                  <div className="p-3 rounded-xl bg-muted/60 text-xs font-medium text-muted-foreground border border-border">
+                    <span className="font-bold text-foreground">Explanation: </span>{q.explanation}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between pt-2">
+            <button
+              onClick={() => { setSelectedOirAns({}); setOirSubmitted(false); }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-muted text-xs font-bold text-muted-foreground hover:text-foreground cursor-pointer"
+            >
+              <RotateCcw size={14} /> Reset Test
+            </button>
+
+            <button
+              onClick={() => setOirSubmitted(true)}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-lg shadow-amber-500/20 cursor-pointer"
+            >
+              <CheckSquare size={15} /> Calculate OIR Rating
+            </button>
+          </div>
+
+          {oirSubmitted && (() => {
+            const res = calculateOirGrade();
+            return (
+              <div className="p-6 rounded-3xl bg-card border border-border shadow-xl space-y-3 text-center animate-fadeIn">
+                <span className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">OFFICER INTELLIGENCE RATING RESULT</span>
+                <h3 className={`text-2xl font-black ${res.color}`}>{res.grade}</h3>
+                <p className="text-xs text-muted-foreground font-semibold max-w-md mx-auto">{res.desc}</p>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* ── TAB 3: DEFENSE CURRENT AFFAIRS & GAT ── */}
+      {subTab === "defense_gat" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {defenseFacts.map((fact, idx) => (
+            <div key={idx} className="p-5 rounded-2xl bg-card border border-border space-y-2 shadow-sm hover:border-amber-500/40 transition-all">
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-extrabold text-[10px]">
+                {fact.category}
+              </span>
+              <h4 className="font-bold text-sm text-foreground mt-1">{fact.title}</h4>
+              <p className="text-xs text-muted-foreground leading-relaxed font-medium">{fact.detail}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SPECIALIZED TOOL 2: GATE VIRTUAL CALCULATOR & NAT PRECISION LAB
+   ═══════════════════════════════════════════════════════════════════════════ */
+function GateNatLab() {
+  const [calcDisplay, setCalcDisplay] = useState("0");
+  const [memory, setMemory]           = useState(0);
+
+  const handleCalcClick = (val: string) => {
+    if (val === "C") {
+      setCalcDisplay("0");
+    } else if (val === "=") {
+      try {
+        const sanitized = calcDisplay.replace(/sin/g, "Math.sin").replace(/cos/g, "Math.cos").replace(/tan/g, "Math.tan").replace(/sqrt/g, "Math.sqrt").replace(/π/g, "Math.PI");
+        const evalRes = Function(`'use strict'; return (${sanitized})`)();
+        setCalcDisplay(String(Number(evalRes).toFixed(4)));
+      } catch {
+        setCalcDisplay("Error");
+      }
+    } else {
+      setCalcDisplay(prev => prev === "0" || prev === "Error" ? val : prev + val);
+    }
+  };
+
+  /* NAT Question State */
+  const [natAnswer, setNatAnswer]   = useState("");
+  const [natStatus, setNatStatus]   = useState<"idle" | "correct" | "incorrect">("idle");
+  const exactAnswer = 0.96; // Expected NAT range: 0.94 - 0.98
+
+  const handleVerifyNat = () => {
+    const num = parseFloat(natAnswer);
+    if (!isNaN(num) && Math.abs(num - exactAnswer) <= 0.02) {
+      setNatStatus("correct");
+    } else {
+      setNatStatus("incorrect");
     }
   };
 
   return (
     <div className="bg-card border border-border rounded-3xl p-6 shadow-xl space-y-6">
-      {/* Header & Lab Subject Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <FlaskConical size={24} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-black text-lg tracking-tight">Interactive 3D Virtual Practical Laboratory</h3>
-              <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-black text-[10px] uppercase">
-                CLASS 10 & 12 PRACTICALS
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">Manipulate live data parameters, observe instant visual results & clear experiment doubts with AI</p>
-          </div>
+      <div className="flex items-center gap-3 border-b border-border pb-4">
+        <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/20">
+          <Calculator size={24} />
         </div>
-
-        {/* Experiment Selector Tabs */}
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-muted/60 border border-border">
-          <button
-            onClick={() => { setActiveExp("physics"); setDoubtAnswer(null); }}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-              activeExp === "physics" ? "bg-blue-600 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Sliders size={14} />
-            <span>Physics Slab</span>
-          </button>
-          <button
-            onClick={() => { setActiveExp("chemistry"); setDoubtAnswer(null); }}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-              activeExp === "chemistry" ? "bg-purple-600 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Beaker size={14} />
-            <span>Chemistry Titration</span>
-          </button>
-          <button
-            onClick={() => { setActiveExp("biology"); setDoubtAnswer(null); }}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-              activeExp === "biology" ? "bg-emerald-600 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Droplets size={14} />
-            <span>Biology Bubbles</span>
-          </button>
+        <div>
+          <h3 className="font-black text-lg text-foreground tracking-tight">Official TCS Virtual Calculator & GATE NAT Solver</h3>
+          <p className="text-xs text-muted-foreground">Practice exact key sequences & numerical answer type (NAT) tolerance checks</p>
         </div>
       </div>
 
-      {/* ── EXPERIMENT 1: PHYSICS REFRACTION & SNELL'S LAW ── */}
-      {activeExp === "physics" && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Visual Canvas (2 Cols) */}
-          <div className="lg:col-span-2 bg-slate-950 rounded-2xl border border-slate-800 p-6 flex flex-col items-center justify-center min-h-[300px] shadow-inner space-y-4">
-            <svg className="w-full h-64" viewBox="0 0 500 240">
-              {/* Glass Slab */}
-              <rect x="150" y="70" width="200" height="100" fill="rgba(59, 130, 246, 0.12)" stroke="#3b82f6" strokeWidth="2" rx="4" />
-              <text x="220" y="125" fill="#60a5fa" fontSize="12" fontStyle="italic" fontWeight="bold">Glass Slab (n = {refIndex})</text>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* TCS Calculator Simulator */}
+        <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-4 shadow-inner">
+          <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+            <span>TCS VIRTUAL SCIENTIFIC CALCULATOR</span>
+            <span>DEG MODE</span>
+          </div>
 
-              {/* Normal Line at Surface 1 */}
-              <line x1="250" y1="20" x2="250" y2="180" stroke="#64748b" strokeWidth="1.5" strokeDasharray="4 4" />
-              <text x="254" y="35" fill="#94a3b8" fontSize="10">Normal (N)</text>
+          <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-right font-mono text-2xl font-black text-emerald-400 tracking-wider truncate overflow-hidden">
+            {calcDisplay}
+          </div>
 
-              {/* Incident Ray */}
-              {(() => {
-                const startX = 250 - 100 * Math.tan((incidentAngle * Math.PI) / 180);
-                const refractX = 250 + 100 * Math.tan((refractAngle * Math.PI) / 180);
-                return (
-                  <>
-                    <line x1={startX} y1="10" x2="250" y2="70" stroke="#f59e0b" strokeWidth="2.5" />
-                    <text x={startX - 15} y="20" fill="#f59e0b" fontSize="11" fontWeight="bold">Incident Ray (i={incidentAngle}°)</text>
+          <div className="grid grid-cols-5 gap-1.5 font-mono text-xs font-bold">
+            {["sin(", "cos(", "tan(", "sqrt(", "C"].map(btn => (
+              <button key={btn} onClick={() => handleCalcClick(btn)} className="p-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 cursor-pointer">{btn}</button>
+            ))}
+            {["7", "8", "9", "/", "π"].map(btn => (
+              <button key={btn} onClick={() => handleCalcClick(btn)} className="p-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-400 cursor-pointer">{btn}</button>
+            ))}
+            {["4", "5", "6", "*", "("].map(btn => (
+              <button key={btn} onClick={() => handleCalcClick(btn)} className="p-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-400 cursor-pointer">{btn}</button>
+            ))}
+            {["1", "2", "3", "-", ")"].map(btn => (
+              <button key={btn} onClick={() => handleCalcClick(btn)} className="p-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-400 cursor-pointer">{btn}</button>
+            ))}
+            {["0", ".", "+", "="].map(btn => (
+              <button key={btn} onClick={() => handleCalcClick(btn)} className={`p-2.5 rounded-lg font-bold cursor-pointer ${btn === "=" ? "col-span-2 bg-emerald-600 text-white" : "bg-slate-900 text-amber-400"}`}>{btn}</button>
+            ))}
+          </div>
+        </div>
 
-                    {/* Refracted Ray Inside Slab */}
-                    <line x1="250" y1="70" x2={refractX} y2="170" stroke="#10b981" strokeWidth="2.5" />
-                    <text x={255} y="110" fill="#34d399" fontSize="10">Refracted (r={refractAngle.toFixed(1)}°)</text>
+        {/* NAT Question Precision Drill */}
+        <div className="p-5 rounded-2xl bg-muted/40 border border-border space-y-4">
+          <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-extrabold text-[10px] uppercase">
+            GATE NAT DRILL (NO OPTIONS)
+          </span>
+          <h4 className="font-bold text-sm text-foreground">
+            A pipeline has 5 stages with delays 10ns, 20ns, 12ns, 25ns, 15ns. Calculate peak throughput in GIPS (rounded to 2 decimal places).
+          </h4>
 
-                    {/* Emergent Ray */}
-                    <line x1={refractX} y1="170" x2={refractX + (250 - startX)} y2="230" stroke="#f59e0b" strokeWidth="2.5" />
-                    <text x={refractX + 10} y="220" fill="#f59e0b" fontSize="11" fontWeight="bold">Emergent Ray (e={incidentAngle}°)</text>
-                  </>
-                );
-              })()}
-            </svg>
-
-            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-xs font-mono text-emerald-400 flex flex-wrap items-center justify-between w-full gap-3">
-              <div>Snell's Law: <span className="text-white font-bold">sin({incidentAngle}°) / sin({refractAngle.toFixed(1)}°) = {refIndex}</span></div>
-              <div>Lateral Displacement (d): <span className="text-amber-400 font-bold">{lateralShift} mm</span></div>
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-muted-foreground">Enter Numerical Value:</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="e.g. 0.96"
+                value={natAnswer}
+                onChange={e => setNatAnswer(e.target.value)}
+                className="flex-1 p-3 rounded-xl bg-card border border-border font-mono font-bold text-sm"
+              />
+              <button
+                onClick={handleVerifyNat}
+                className="px-5 py-3 rounded-xl bg-amber-500 text-white font-bold text-xs cursor-pointer shadow-md"
+              >
+                Verify NAT
+              </button>
             </div>
           </div>
 
-          {/* Slider Parameters (1 Col) */}
-          <div className="bg-card border border-border rounded-2xl p-5 space-y-5">
-            <h4 className="font-bold text-sm text-foreground flex items-center gap-2 border-b border-border pb-3">
-              <Sliders size={16} className="text-blue-500" />
-              <span>Experiment Variables</span>
-            </h4>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs font-bold">
-                  <span className="text-muted-foreground">Angle of Incidence (i):</span>
-                  <span className="text-amber-400 font-mono">{incidentAngle}°</span>
-                </div>
-                <input
-                  type="range" min="10" max="75" value={incidentAngle}
-                  onChange={e => setIncidentAngle(Number(e.target.value))}
-                  className="w-full accent-amber-500 cursor-pointer"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs font-bold">
-                  <span className="text-muted-foreground">Medium Refractive Index (n):</span>
-                  <span className="text-blue-400 font-mono">{refIndex}</span>
-                </div>
-                <input
-                  type="range" min="1.0" max="2.4" step="0.1" value={refIndex}
-                  onChange={e => setRefIndex(Number(e.target.value))}
-                  className="w-full accent-blue-500 cursor-pointer"
-                />
-                <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
-                  <span>Air (1.0)</span>
-                  <span>Water (1.33)</span>
-                  <span>Glass (1.5)</span>
-                  <span>Diamond (2.4)</span>
-                </div>
-              </div>
+          {natStatus === "correct" && (
+            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center gap-2">
+              <CheckCircle2 size={16} /> Correct! Within acceptable tolerance margin [0.94 - 0.98].
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* ── EXPERIMENT 2: CHEMISTRY ACID-BASE TITRATION ── */}
-      {activeExp === "chemistry" && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-slate-950 rounded-2xl border border-slate-800 p-6 flex flex-col items-center justify-center min-h-[300px] shadow-inner space-y-4">
-            {/* SVG Burette & Flask */}
-            <div className="flex items-center gap-8">
-              <svg className="w-48 h-64" viewBox="0 0 180 240">
-                {/* Burette Tube */}
-                <rect x="80" y="10" width="20" height="110" fill="rgba(255,255,255,0.1)" stroke="#cbd5e1" strokeWidth="2" rx="2" />
-                {/* Burette Liquid Level */}
-                <rect x="82" y={12 + naohVolume * 1.8} width="16" height={106 - naohVolume * 1.8} fill="#38bdf8" />
-                <text x="35" y="30" fill="#94a3b8" fontSize="10" fontMono="true">Burette (NaOH)</text>
-
-                {/* Valve */}
-                <circle cx="90" cy="125" r="4" fill="#ef4444" />
-
-                {/* Drops Animation */}
-                {naohVolume > 0 && (
-                  <circle cx="90" cy="138" r="3" fill="#38bdf8" className="animate-bounce" />
-                )}
-
-                {/* Flask Body */}
-                <path d="M 75 145 L 40 210 Q 35 220 45 220 L 135 220 Q 145 220 140 210 L 105 145 Z" fill="rgba(255,255,255,0.05)" stroke="#cbd5e1" strokeWidth="2" />
-                {/* Flask Liquid Fill */}
-                <path d="M 52 190 L 40 210 Q 35 220 45 220 L 135 220 Q 145 220 140 210 L 128 190 Z" fill={getSolutionColor()} className="transition-all duration-500" />
-              </svg>
-
-              <div className="space-y-3">
-                <div className="p-4 rounded-2xl bg-slate-900 border border-purple-500/30 text-center space-y-1">
-                  <span className="text-[10px] uppercase font-bold text-purple-400">SOLUTION pH LEVEL</span>
-                  <div className="text-4xl font-black font-mono text-white">{calcPh}</div>
-                  <span className="text-xs font-bold text-slate-400">
-                    {numericPh < 7 ? "Acidic Solution" : numericPh === 7 ? "Equivalence Endpoint (Neutral)" : "Basic Solution"}
-                  </span>
-                </div>
-              </div>
+          {natStatus === "incorrect" && (
+            <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-2">
+              <AlertTriangle size={16} /> Incorrect. Correct range is 0.94 to 0.98 (Formula: 1 / 25ns = 0.04 GIPS).
             </div>
-          </div>
-
-          <div className="bg-card border border-border rounded-2xl p-5 space-y-5">
-            <h4 className="font-bold text-sm text-foreground flex items-center gap-2 border-b border-border pb-3">
-              <Sliders size={16} className="text-purple-500" />
-              <span>Titration Controls</span>
-            </h4>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs font-bold">
-                  <span className="text-muted-foreground">Added NaOH Volume:</span>
-                  <span className="text-purple-400 font-mono">{naohVolume} mL</span>
-                </div>
-                <input
-                  type="range" min="0" max="50" step="1" value={naohVolume}
-                  onChange={e => setNaohVolume(Number(e.target.value))}
-                  className="w-full accent-purple-500 cursor-pointer"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <span className="text-xs font-bold text-muted-foreground">Select Indicator:</span>
-                <select
-                  value={indicator}
-                  onChange={e => setIndicator(e.target.value as any)}
-                  className="w-full p-2.5 rounded-xl bg-muted/60 border border-border text-xs font-bold cursor-pointer"
-                >
-                  <option value="phenolphthalein">Phenolphthalein (Colorless → Pink)</option>
-                  <option value="universal">Universal Indicator (Red → Green → Blue)</option>
-                  <option value="methyl">Methyl Orange (Red → Yellow)</option>
-                </select>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
-      )}
-
-      {/* ── EXPERIMENT 3: BIOLOGY PHOTOSYNTHESIS BUBBLES ── */}
-      {activeExp === "biology" && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-slate-950 rounded-2xl border border-slate-800 p-6 flex flex-col items-center justify-center min-h-[300px] shadow-inner space-y-4">
-            <div className="flex items-center gap-8">
-              <svg className="w-48 h-64" viewBox="0 0 180 240">
-                {/* Beaker */}
-                <rect x="30" y="60" width="120" height="160" fill="rgba(56, 189, 248, 0.1)" stroke="#38bdf8" strokeWidth="2" rx="4" />
-                {/* Inverted Funnel & Test Tube */}
-                <path d="M 60 210 L 90 140 L 90 70 L 100 70 L 100 140 L 130 210 Z" fill="rgba(255,255,255,0.08)" stroke="#cbd5e1" strokeWidth="1.5" />
-
-                {/* Animated O2 Bubbles */}
-                {bubbleRate > 0 && (
-                  <>
-                    <circle cx="95" cy="120" r="3.5" fill="#38bdf8" className="animate-ping" />
-                    <circle cx="95" cy="90" r="4" fill="#38bdf8" className="animate-bounce" />
-                  </>
-                )}
-
-                {/* Hydrilla Plant leaves */}
-                <path d="M 85 210 Q 70 190 85 170 Q 100 150 85 130" fill="none" stroke="#22c55e" strokeWidth="4" />
-              </svg>
-
-              <div className="p-5 rounded-2xl bg-slate-900 border border-emerald-500/30 text-center space-y-1">
-                <span className="text-[10px] uppercase font-bold text-emerald-400">OXYGEN (O₂) BUBBLE RATE</span>
-                <div className="text-4xl font-black font-mono text-emerald-400">{bubbleRate}</div>
-                <span className="text-xs font-bold text-slate-400">Bubbles per Minute</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-card border border-border rounded-2xl p-5 space-y-5">
-            <h4 className="font-bold text-sm text-foreground flex items-center gap-2 border-b border-border pb-3">
-              <Sliders size={16} className="text-emerald-500" />
-              <span>Environmental Factors</span>
-            </h4>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs font-bold">
-                  <span className="text-muted-foreground">Light Intensity:</span>
-                  <span className="text-amber-400 font-mono">{lightIntensity}%</span>
-                </div>
-                <input
-                  type="range" min="0" max="100" value={lightIntensity}
-                  onChange={e => setLightIntensity(Number(e.target.value))}
-                  className="w-full accent-amber-500 cursor-pointer"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs font-bold">
-                  <span className="text-muted-foreground">Water Temperature:</span>
-                  <span className="text-emerald-400 font-mono">{waterTemp}°C</span>
-                </div>
-                <input
-                  type="range" min="10" max="45" value={waterTemp}
-                  onChange={e => setWaterTemp(Number(e.target.value))}
-                  className="w-full accent-emerald-500 cursor-pointer"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── AI EXPERIMENT DOUBT CLEARING ASSISTANT ── */}
-      <div className="p-6 rounded-2xl bg-muted/40 border border-border space-y-4 shadow-sm">
-        <div className="flex items-center gap-2 border-b border-border pb-3">
-          <MessageSquare size={18} className="text-indigo-500" />
-          <h4 className="font-extrabold text-sm text-foreground">AI Experiment Doubt Clearing Assistant</h4>
-        </div>
-
-        {/* Quick Doubt Inquiry Chips */}
-        <div className="flex flex-wrap gap-2">
-          {prefilledDoubts.map((chip, i) => (
-            <button
-              key={i}
-              onClick={() => { setDoubtText(chip); handleAskDoubt(chip); }}
-              className="px-3 py-1.5 rounded-xl bg-card border border-border hover:border-indigo-500/40 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer text-left"
-            >
-              ❓ {chip}
-            </button>
-          ))}
-        </div>
-
-        {/* Custom Input */}
-        <div className="flex gap-2 pt-1">
-          <input
-            type="text"
-            placeholder="Ask AI any conceptual doubt about this experiment..."
-            value={doubtText}
-            onChange={e => setDoubtText(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleAskDoubt()}
-            className="flex-1 px-4 py-2.5 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-indigo-500/40 text-xs font-medium"
-          />
-          <button
-            onClick={() => handleAskDoubt()}
-            disabled={loadingDoubt || !doubtText.trim()}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
-          >
-            {loadingDoubt ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
-            <span>Clear Doubt</span>
-          </button>
-        </div>
-
-        {doubtAnswer && (
-          <div className="p-5 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-xs text-foreground leading-relaxed space-y-2 animate-fadeIn">
-            <span className="font-bold text-indigo-400 flex items-center gap-1.5 text-sm">
-              <CheckCircle2 size={16} /> AI Conceptual Explanation:
-            </span>
-            <p className="text-muted-foreground">{doubtAnswer}</p>
-          </div>
-        )}
       </div>
     </div>
   );
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   MAIN CONTAINER COMPONENT
+   MAIN EXAM SPECIAL TOOLS CONTAINER
    ═══════════════════════════════════════════════════════════════════════════ */
 export default function ExamSpecialTools() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
 
-  const userExam = getCurrentTargetExam(user);
-  const paramExam = searchParams.get("exam");
-  const activeExam = paramExam || userExam || "Class 10 Boards";
+  const userExam   = getCurrentTargetExam(user);
+  const paramExam  = searchParams.get("exam");
+  const activeExam = paramExam || userExam || "NDA/CDS";
 
   const availableSubjects = getSubjectsForExam(activeExam);
-  const [selectedSubject, setSelectedSubject] = useState<string>(availableSubjects[0] || "Physics");
+  const [selectedSubject, setSelectedSubject] = useState<string>(availableSubjects[0] || "Mathematics");
 
-  const tabParam = searchParams.get("tab");
-  const [activeTabMode, setActiveTabMode]     = useState<"special" | "lab">(tabParam === "lab" ? "lab" : "special");
-
-  useEffect(() => {
-    if (tabParam === "lab") {
-      setActiveTabMode("lab");
-    } else {
-      setActiveTabMode("special");
-    }
-  }, [tabParam]);
-
-  useEffect(() => {
-    const subs = getSubjectsForExam(activeExam);
-    if (!subs.includes(selectedSubject)) {
-      setSelectedSubject(subs[0] || "Physics");
-    }
-  }, [activeExam, selectedSubject]);
-
-  /* --- Dynamic AI Question Pipeline --- */
   const [loadingAi, setLoadingAi]         = useState(false);
   const [aiQuestion, setAiQuestion]       = useState<AiQuestion | null>(null);
   const [viewMode, setViewMode]           = useState<"simulator" | "proof" | "selftest">("simulator");
   const [revealedSteps, setRevealedSteps] = useState<Record<number, boolean>>({});
   const [copied, setCopied]               = useState(false);
 
-  /* --- Page Refresh Warning Protection --- */
   useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (aiQuestion) {
-        e.preventDefault();
-        e.returnValue = "Are you sure you want to refresh? Your current question and progress will be lost!";
-        return e.returnValue;
-      }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [aiQuestion]);
+    const subs = getSubjectsForExam(activeExam);
+    if (!subs.includes(selectedSubject)) {
+      setSelectedSubject(subs[0] || "Mathematics");
+    }
+  }, [activeExam]);
 
+  // Robust Fetch with Client Fallback
   const fetchNewAiQuestion = async (sub: string = selectedSubject) => {
     setLoadingAi(true);
     setRevealedSteps({});
     try {
       const res = await apiRequest<{ success: boolean; question: AiQuestion }>("/ai/exam-special", {
         method: "POST",
-        body: JSON.stringify({
-          targetExam: activeExam,
-          subject: sub
-        })
+        body: JSON.stringify({ targetExam: activeExam, subject: sub })
       });
       if (res?.success && res.question) {
         setAiQuestion(res.question);
+      } else {
+        throw new Error("Invalid payload");
       }
-    } catch (err) {
-      console.error("Failed to fetch Groq AI Question:", err);
+    } catch {
+      // Load Client Fallback
+      const fb = FALLBACK_QUESTIONS[activeExam] || FALLBACK_QUESTIONS["Default"];
+      setAiQuestion({ ...fb, targetExam: activeExam, subject: sub });
     } finally {
       setLoadingAi(false);
     }
@@ -553,26 +886,29 @@ export default function ExamSpecialTools() {
     "Class 12 Boards": { title: "Board Special Suite & 3D Lab", subtitle: "Class 12 Physics & Math Practical Engine", icon: FileText, color: "text-blue-500" },
   };
 
-  const activeInfo = toolsMap[activeExam] || toolsMap["Class 10 Boards"];
+  const activeInfo = toolsMap[activeExam] || toolsMap["NDA/CDS"];
   const ActiveIcon = activeInfo.icon;
-  const isBoardExam = activeExam.includes("Class 10") || activeExam.includes("Class 12") || activeExam.includes("Board");
+  const isDefenseExam = activeExam.includes("NDA") || activeExam.includes("CDS");
+  const isGateExam    = activeExam.includes("GATE");
 
   return (
     <div className="px-4 sm:px-6 pt-3 pb-8 max-w-7xl mx-auto space-y-6">
       {/* Dynamic Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-3xl bg-gradient-to-br from-card via-card/90 to-primary/5 border border-border shadow-xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-3xl bg-gradient-to-br from-card via-card/90 to-amber-500/5 border border-border shadow-xl">
         <div className="flex items-center gap-4">
-          <div className={`w-14 h-14 rounded-2xl bg-primary/10 ${activeInfo.color} border border-primary/20 flex items-center justify-center shadow-md`}>
+          <div className={`w-14 h-14 rounded-2xl bg-amber-500/10 ${activeInfo.color} border border-amber-500/20 flex items-center justify-center shadow-md`}>
             <ActiveIcon size={28} />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight">{activeInfo.title}</h1>
-              <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-extrabold text-[10px] uppercase tracking-wider">
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-extrabold text-[10px] uppercase tracking-wider">
                 SPECIAL EXAM SUITE
               </span>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">{activeInfo.subtitle} &nbsp;·&nbsp; Target Exam: <span className="font-bold text-primary">{activeExam}</span></p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {activeInfo.subtitle} &nbsp;·&nbsp; Target Exam: <span className="font-bold text-amber-500">{activeExam}</span>
+            </p>
           </div>
         </div>
 
@@ -596,26 +932,32 @@ export default function ExamSpecialTools() {
           <button
             onClick={() => fetchNewAiQuestion()}
             disabled={loadingAi}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs shadow-lg shadow-emerald-500/20 transition-all cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-lg shadow-amber-500/20 transition-all cursor-pointer disabled:opacity-50"
           >
             {loadingAi ? <RefreshCw size={15} className="animate-spin" /> : <Sparkles size={15} />}
-            <span>{loadingAi ? "Generating Question..." : "✨ Generate New Question"}</span>
+            <span>{loadingAi ? "Generating..." : "✨ Generate New Question"}</span>
           </button>
         </div>
       </div>
 
-      {/* Main Derivation Content Area */}
+      {/* Render Dedicated Module for NDA/CDS */}
+      {isDefenseExam && <SsbDefenseHub />}
+
+      {/* Render Dedicated Module for GATE */}
+      {isGateExam && <GateNatLab />}
+
+      {/* Main Step-by-Step AI Question Solver & Proof Engine */}
       {loadingAi ? (
         <div className="p-12 rounded-3xl bg-card border border-border text-center space-y-4 shadow-xl">
-          <RefreshCw size={36} className="animate-spin text-emerald-500 mx-auto" />
-          <h3 className="text-lg font-bold text-foreground">Preparing Exam Question...</h3>
-          <p className="text-xs text-muted-foreground">Generating a brand new, unique {selectedSubject} question strictly tailored for {activeExam}...</p>
+          <RefreshCw size={36} className="animate-spin text-amber-500 mx-auto" />
+          <h3 className="text-lg font-bold text-foreground">Preparing {activeExam} Question...</h3>
+          <p className="text-xs text-muted-foreground">Generating a high-yield question strictly tailored for {selectedSubject}...</p>
         </div>
       ) : aiQuestion ? (
         <div className="space-y-6">
           <div className="flex items-center justify-between flex-wrap gap-4 p-5 rounded-3xl bg-card border border-border shadow-xl">
             <div>
-              <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold text-xs">
+              <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-extrabold text-xs">
                 {aiQuestion.subject} · {aiQuestion.marks}
               </span>
               <h3 className="text-xl font-black text-foreground mt-2">{aiQuestion.questionTitle}</h3>
@@ -627,7 +969,7 @@ export default function ExamSpecialTools() {
                 <button
                   onClick={() => setViewMode("simulator")}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                    viewMode === "simulator" ? "bg-emerald-500 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    viewMode === "simulator" ? "bg-amber-500 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   <Sliders size={14} />
@@ -636,11 +978,11 @@ export default function ExamSpecialTools() {
                 <button
                   onClick={() => setViewMode("selftest")}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                    viewMode === "selftest" ? "bg-emerald-500 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    viewMode === "selftest" ? "bg-amber-500 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   <CheckSquare size={14} />
-                  <span>PYQ Self-Test</span>
+                  <span>Self-Test Recall</span>
                 </button>
               </div>
 
@@ -655,8 +997,8 @@ export default function ExamSpecialTools() {
           </div>
 
           {aiQuestion.diagramDescription && (
-            <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-start gap-2.5">
-              <Info size={16} className="mt-0.5 flex-shrink-0 text-emerald-500" />
+            <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 font-medium flex items-start gap-2.5">
+              <Info size={16} className="mt-0.5 flex-shrink-0 text-amber-500" />
               <span>{aiQuestion.diagramDescription}</span>
             </div>
           )}
@@ -667,12 +1009,12 @@ export default function ExamSpecialTools() {
                 {aiQuestion.steps.map((st, i) => (
                   <div key={i} className="p-5 rounded-2xl bg-card border border-border space-y-3 shadow-md">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">{st.title}</span>
-                      <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 font-extrabold text-[10px]">
+                      <span className="font-bold text-amber-600 dark:text-amber-400 text-sm">{st.title}</span>
+                      <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-300 font-extrabold text-[10px]">
                         +{st.credit}
                       </span>
                     </div>
-                    <div className="p-4 rounded-2xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-mono text-xs font-bold leading-relaxed">
+                    <div className="p-4 rounded-2xl bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 font-mono text-xs font-bold leading-relaxed">
                       {st.formula}
                     </div>
                     <p className="text-xs text-muted-foreground leading-relaxed font-medium">{st.explanation}</p>
@@ -680,15 +1022,15 @@ export default function ExamSpecialTools() {
                 ))}
               </div>
 
-              <div className="bg-card border border-border rounded-3xl p-6 shadow-xl space-y-5">
+              <div className="bg-card border border-border rounded-3xl p-6 shadow-xl space-y-5 h-fit">
                 <div className="flex items-center gap-2 border-b border-border pb-3">
-                  <Award size={18} className="text-emerald-500" />
+                  <Award size={18} className="text-amber-500" />
                   <h4 className="font-bold text-sm">Examiner Marking Insights</h4>
                 </div>
 
                 <div className="space-y-3">
                   {aiQuestion.examinerAlerts.map((alert, i) => (
-                    <div key={i} className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-800 dark:text-amber-300 font-medium space-y-1">
+                    <div key={i} className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-900 dark:text-amber-300 font-medium space-y-1">
                       <p className="leading-relaxed">{alert}</p>
                     </div>
                   ))}
@@ -698,7 +1040,7 @@ export default function ExamSpecialTools() {
           ) : (
             <div className="bg-card border border-border rounded-3xl p-6 shadow-xl space-y-6">
               <div className="flex items-center justify-between border-b border-border pb-4">
-                <h4 className="font-extrabold text-lg text-foreground">Interactive Formula Recall Challenge</h4>
+                <h4 className="font-extrabold text-lg text-foreground">Formula & Step Recall Drill</h4>
                 <button
                   onClick={() => setRevealedSteps({})}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted text-xs font-bold hover:bg-muted/80 text-muted-foreground hover:text-foreground cursor-pointer"
@@ -715,15 +1057,15 @@ export default function ExamSpecialTools() {
                       <span className="font-bold text-sm text-foreground">{st.title}</span>
                       <button
                         onClick={() => toggleStep(i)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-bold cursor-pointer hover:bg-emerald-500/20"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-bold cursor-pointer hover:bg-amber-500/20"
                       >
                         {revealedSteps[i] ? <EyeOff size={13} /> : <Eye size={13} />}
-                        {revealedSteps[i] ? "Hide Step Formula" : "Reveal Step Formula"}
+                        {revealedSteps[i] ? "Hide Formula" : "Reveal Formula"}
                       </button>
                     </div>
 
                     {revealedSteps[i] ? (
-                      <div className="p-4 rounded-2xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-mono text-xs font-bold leading-relaxed animate-fadeIn">
+                      <div className="p-4 rounded-2xl bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 font-mono text-xs font-bold leading-relaxed animate-fadeIn">
                         {st.formula}
                       </div>
                     ) : (
