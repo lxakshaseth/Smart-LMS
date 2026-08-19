@@ -778,6 +778,18 @@ if (require.main === module) {
   connectDB().catch((err) => {
     console.warn("⚠️ MongoDB Background Connect Warning:", err.message);
   });
+
+  const { startConsumer } = require("./services/kafkaConsumer");
+  startConsumer().catch((err) => {
+    console.warn("⚠️ Kafka Consumer initialization warning:", err.message);
+  });
+
+  const { startRabbitWorkers } = require("./services/rabbitConsumer");
+  try {
+    startRabbitWorkers();
+  } catch (err) {
+    console.warn("⚠️ RabbitMQ Worker initialization warning:", err.message);
+  }
 }
 
 module.exports = app;

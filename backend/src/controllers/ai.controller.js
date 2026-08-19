@@ -31,10 +31,11 @@ const getGroqClient = () => {
 const GROQ_MODEL_FALLBACKS = [
   process.env.GROQ_MODEL,
   "llama-3.3-70b-versatile",
-  "llama3-8b-8192",
-  "llama3-70b-8192",
-  "mixtral-8x7b-32768",
-  "llama-3.1-8b-instant"
+  "llama-3.1-8b-instant",
+  "llama-3.2-3b-preview",
+  "llama-3.2-11b-vision-preview",
+  "qwen-2.5-32b",
+  "deepseek-r1-distill-llama-70b"
 ].filter(Boolean);
 
 async function safeGroqCall(config) {
@@ -55,8 +56,21 @@ async function safeGroqCall(config) {
       ]);
     } catch (err) {
       lastErr = err;
-      if (err.message && (err.message.includes("404") || err.message.includes("does not exist") || err.message.includes("model_not_found"))) {
-        console.warn(`Groq Model ${targetModel} unavailable (404), trying next fallback...`);
+      const errMsg = err?.message || "";
+      const status = err?.status || err?.statusCode;
+      const isModelError =
+        status === 400 ||
+        status === 404 ||
+        errMsg.includes("404") ||
+        errMsg.includes("400") ||
+        errMsg.includes("decommissioned") ||
+        errMsg.includes("deprecated") ||
+        errMsg.includes("does not exist") ||
+        errMsg.includes("model_not_found") ||
+        errMsg.includes("not found");
+
+      if (isModelError) {
+        console.warn(`Groq Model ${targetModel} unavailable (${errMsg.slice(0, 80)}), trying next fallback...`);
         continue;
       }
       throw err;
